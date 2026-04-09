@@ -1,21 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SENTINEL // Geopolitical OSINT Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;600;700&family=Exo+2:wght@100;300;400;700&display=swap" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  *{box-sizing:border-box;margin:0;padding:0;}
-  html,body{width:100%;height:100%;background:#000913;color:#00d4ff;font-family:'Rajdhani',sans-serif;overflow:hidden;}
-  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.025) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
-  .dash{position:relative;z-index:1;width:100vw;height:100vh;display:flex;flex-direction:column;gap:0;padding:8px;}
-  #page-live{flex:1;min-height:0;display:grid;grid-template-columns:280px 1fr 280px;grid-template-rows:1fr;gap:6px;margin-top:4px;}  #page-recon{display:none;min-height:0;grid-template-columns:280px 1fr 280px;grid-template-rows:1fr;gap:6px;margin-top:4px;}
-  .tf-btn{background:transparent;border:1px solid #00d4ff22;color:#4a7a8a;font-family:'Rajdhani',sans-serif;font-size:7px;letter-spacing:1px;padding:2px 5px;cursor:pointer;transition:all 0.15s;}
-  .tf-btn:hover{border-color:#00d4ff66;color:#00d4ff;}
-  .tf-btn.active{background:rgba(0,212,255,0.15);border-color:rgba(0,212,255,0.6);color:#00d4ff;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000913;}
 
-  .topbar{display:flex;align-items:center;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid #00d4ff55;position:relative;flex-shrink:0;}
+  /* ── ROOT LAYOUT ───────────────────────────────────────────────────── */
+  .dash{
+    width:100vw;height:100vh;
+    display:grid;
+    grid-template-rows:auto auto 1fr;
+    padding:8px;gap:0;
+    position:relative;z-index:1;
+  }
+
+  /* ── TOPBAR ────────────────────────────────────────────────────────── */
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid #00d4ff55;flex-shrink:0;position:relative;}
   .topbar::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#00d4ff,transparent);opacity:0.5;}
   .logo{font-family:'Exo 2',sans-serif;font-size:22px;font-weight:700;letter-spacing:8px;color:#00d4ff;text-shadow:0 0 20px rgba(0,212,255,0.6);}
   .logo span{color:#4df7ff;}
@@ -27,99 +32,104 @@
   @keyframes blink{0%,100%{opacity:1}50%{opacity:0.15}}
   .clock{font-family:'Exo 2',sans-serif;font-size:15px;font-weight:300;color:#4df7ff;letter-spacing:3px;}
 
+  /* ── TICKER ────────────────────────────────────────────────────────── */
   .ticker-bar{background:#000d1a;border-top:1px solid #00d4ff33;border-bottom:1px solid #00d4ff33;overflow:visible;position:relative;flex-shrink:0;height:46px;z-index:2;}
   .ticker-bar .tradingview-widget-container{position:absolute;inset:0;height:46px;}
   .ticker-bar .tradingview-widget-container__widget{height:46px!important;}
   .ticker-bar iframe{height:46px!important;min-height:46px!important;}
 
-  .main-layout{display:grid;grid-template-columns:280px 1fr 280px;gap:6px;min-height:0;margin-top:4px;}
-  .side-panel{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:hidden;height:100%;}
+  /* ── THREE-COLUMN LAYOUT ───────────────────────────────────────────── */
+  .main-layout{
+    display:grid;
+    grid-template-columns:280px 1fr 280px;
+    grid-template-rows:1fr;
+    gap:6px;
+    min-height:0;
+    margin-top:4px;
+  }
+  .side-panel{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:hidden;}
+  .map-container{position:relative;border:1px solid #00d4ff44;overflow:hidden;min-height:0;display:flex;flex-direction:column;}
+
+  /* ── PANELS ────────────────────────────────────────────────────────── */
   .panel{background:#000d1a;border:1px solid #00d4ff33;display:flex;flex-direction:column;min-height:0;overflow:hidden;position:relative;}
   .panel::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg,rgba(0,212,255,0.03) 0%,transparent 40%);pointer-events:none;z-index:0;}
   .panel-inner{padding:8px;display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;position:relative;z-index:1;}
   .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid #00d4ff1a;flex-shrink:0;}
   .panel-title{font-size:10px;letter-spacing:3px;color:#00d4ff88;text-transform:uppercase;font-weight:600;}
-  .panel-badge{font-size:9px;background:#00d4ff18;color:#00d4ff;padding:2px 7px;letter-spacing:2px;border:1px solid #00d4ff33;}
-  .panel-badge.live{background:#00ff8822;color:#00ff88;border-color:#00ff8855;}
-  .panel-scroll{overflow-y:auto;flex:1;min-height:0;}
-  .panel-scroll::-webkit-scrollbar{width:2px;}
-  .panel-scroll::-webkit-scrollbar-thumb{background:#00d4ff22;}
+  .panel-badge{font-size:7px;letter-spacing:2px;padding:2px 6px;border:1px solid #4a7a8a;color:#4a7a8a;text-transform:uppercase;}
+  .panel-badge.live{border-color:#00ff88;color:#00ff88;animation:blink 2s infinite;}
 
-  .data-tabs{display:flex;flex-shrink:0;margin-bottom:6px;border-bottom:1px solid #00d4ff1a;}
-  .data-tab{flex:1;padding:5px 0;font-size:8px;letter-spacing:1px;text-transform:uppercase;text-align:center;cursor:pointer;color:#4a7a8a;border:none;background:transparent;font-family:'Rajdhani',sans-serif;border-bottom:2px solid transparent;transition:all 0.15s;margin-bottom:-1px;}
-  .data-tab.active{color:#00d4ff;border-bottom-color:#00d4ff;}
-  .data-tab:hover:not(.active){color:#00d4ff55;}
-
+  /* ── TABS ──────────────────────────────────────────────────────────── */
+  .data-tabs{display:flex;gap:2px;margin-bottom:6px;flex-shrink:0;}
+  .data-tab{flex:1;background:transparent;border:1px solid #00d4ff22;color:#4a7a8a;font-family:'Rajdhani',sans-serif;font-size:8px;letter-spacing:1.5px;padding:3px 2px;cursor:pointer;transition:all 0.15s;text-transform:uppercase;}
+  .data-tab.active{background:rgba(0,212,255,0.12);border-color:#00d4ff66;color:#00d4ff;}
+  .data-tab:hover{border-color:#00d4ff44;color:#00b8d9;}
   .tv-wrap{flex:1;min-height:0;position:relative;overflow:hidden;}
-  .tv-panel{position:absolute;inset:0;display:none;flex-direction:column;overflow-y:auto;overflow-x:hidden;gap:1px;}
-  .tv-panel.active{display:flex;}
-  .tv-panel::-webkit-scrollbar{width:2px;}
-  .tv-panel::-webkit-scrollbar-thumb{background:#00d4ff22;}
+  .tv-panel{display:none;position:absolute;inset:0;}
+  .tv-panel.active{display:block;}
 
-  /* Label + widget row */
-  .sq-label{font-size:8px;letter-spacing:2px;color:#4a7a8a;text-transform:uppercase;padding:5px 6px 1px;flex-shrink:0;}
-  .sq-row{flex-shrink:0;width:100%;overflow:hidden;}
-  .sq-row .tradingview-widget-container{width:100%!important;overflow:hidden!important;}
-  .sq-row .tradingview-widget-container__widget{width:100%!important;}
+  /* ── MAP TABS ──────────────────────────────────────────────────────── */
+  .map-tabs{display:flex;gap:0;flex-shrink:0;border-bottom:1px solid #00d4ff22;}
+  .map-tab{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;color:#4a7a8a;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1.5px;padding:6px 4px;cursor:pointer;transition:all 0.15s;text-transform:uppercase;}
+  .map-tab.active{color:#00d4ff;border-bottom-color:#00d4ff;background:rgba(0,212,255,0.05);}
+  .map-tab:hover{color:#00b8d9;background:rgba(0,212,255,0.05);}
+  .map-tab.amber.active{color:#ffbb00;border-bottom-color:#ffbb00;}
+  .map-tab.red.active{color:#ff3d3d;border-bottom-color:#ff3d3d;}
+  .map-frame-wrap{flex:1;position:relative;min-height:0;}
+  .map-frame-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:none;}
 
-  /* Note badge for ETF proxies */
-  .proxy-note{font-size:7px;color:#ffbb0077;letter-spacing:1px;padding:0 6px 3px;flex-shrink:0;}
-
-  .news-item{padding:6px 0;border-bottom:1px solid rgba(0,212,255,0.06);}
-  .news-tags{margin-bottom:3px;}
-  .news-tag{font-size:8px;letter-spacing:1px;padding:1px 5px;margin-right:4px;font-weight:700;}
-  .tag-mil{background:rgba(255,61,61,0.15);color:#ff3d3d;border:1px solid rgba(255,61,61,0.3);}
-  .tag-pol{background:rgba(255,187,0,0.15);color:#ffbb00;border:1px solid rgba(255,187,0,0.3);}
-  .tag-eco{background:rgba(0,212,255,0.1);color:#00d4ff;border:1px solid #00d4ff33;}
-  .tag-cri{background:rgba(180,0,255,0.15);color:#cc88ff;border:1px solid rgba(180,0,255,0.3);}
-  .news-text{font-size:10px;color:#a8e8f8;line-height:1.5;}
-  .news-time{font-size:9px;color:#4a7a8a;margin-top:2px;letter-spacing:1px;}
-  .alert-item{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(0,212,255,0.06);}
-  .alert-icon{font-size:12px;flex-shrink:0;margin-top:1px;}
-  .alert-text{font-size:10px;color:#a8e8f8;line-height:1.5;}
-  .alert-time{font-size:9px;color:#4a7a8a;letter-spacing:1px;}
-  .osint-section{margin-bottom:8px;}
-  .osint-section-title{font-size:9px;letter-spacing:2px;color:#00d4ff44;text-transform:uppercase;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid #00d4ff1a;}
-  .osint-link{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid rgba(0,212,255,0.04);text-decoration:none;}
-  .osint-link:hover .osint-name{color:#4df7ff;}
-  .osint-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
-  .osint-name{font-size:10px;font-weight:600;letter-spacing:1px;color:#00d4ff;transition:color 0.15s;}
-  .osint-desc{font-size:8px;color:#4a7a8a;letter-spacing:1px;}
-
-  .map-container{position:relative;border:1px solid #00d4ff44;overflow:hidden;min-height:0;display:flex;flex-direction:column;height:100%;}
-  .map-tabs{display:flex;flex-shrink:0;border-bottom:1px solid #00d4ff33;background:#000913;}
-  .map-tab{flex:1;padding:7px 4px;font-size:9px;letter-spacing:1px;text-transform:uppercase;text-align:center;cursor:pointer;color:#4a7a8a;transition:all 0.15s;border:none;background:transparent;font-family:'Rajdhani',sans-serif;border-right:1px solid #00d4ff1a;}
-  .map-tab:last-child{border-right:none;}
-  .map-tab.active{color:#00d4ff;background:#00d4ff0f;border-bottom:2px solid #00d4ff;}
-  .map-tab.red.active{color:#ff3d3d;border-bottom-color:#ff3d3d;background:rgba(255,61,61,0.05);}
-  .map-tab.amber.active{color:#ffbb00;border-bottom-color:#ffbb00;background:rgba(255,187,0,0.05);}
-  .map-tab:hover:not(.active){color:#00d4ff66;background:#00d4ff07;}
-  .map-frame-wrap{flex:1;position:relative;min-height:0;background:#000913;}
-  #mapFrame{position:absolute;top:0;left:0;width:100%;height:100%;border:none;}
-  .map-loading{position:absolute;inset:0;background:#000913;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:10;pointer-events:none;opacity:0;transition:opacity 0.3s;}
-  .map-loading.show{opacity:1;pointer-events:all;}
-  .loading-bar-wrap{width:200px;height:2px;background:#00d4ff22;border-radius:2px;overflow:hidden;}
-  .loading-bar{height:100%;background:#00d4ff;animation:loadpulse 1.2s ease-in-out infinite;}
-  @keyframes loadpulse{0%{width:0%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0%;margin-left:100%}}
-  .loading-text{font-size:10px;letter-spacing:3px;color:#00d4ff66;}
-  .loading-tab-name{font-size:13px;letter-spacing:2px;color:#00d4ff;}
+  /* ── CORNERS ───────────────────────────────────────────────────────── */
   .corner{position:absolute;width:12px;height:12px;z-index:500;pointer-events:none;}
   .c-tl{top:36px;left:6px;border-top:1px solid #00d4ff;border-left:1px solid #00d4ff;}
   .c-tr{top:36px;right:6px;border-top:1px solid #00d4ff;border-right:1px solid #00d4ff;}
   .c-bl{bottom:6px;left:6px;border-bottom:1px solid #00d4ff;border-left:1px solid #00d4ff;}
   .c-br{bottom:6px;right:6px;border-bottom:1px solid #00d4ff;border-right:1px solid #00d4ff;}
-  .btn-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;flex-shrink:0;}
-  .tool-btn{background:transparent;border:1px solid #00d4ff44;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;padding:4px 10px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;}
-  .tool-btn:hover{background:#00d4ff18;color:#4df7ff;}
-  .page-content{transition:opacity 0.35s ease;}
-  .page-content.fading{opacity:0;}
+
+  /* ── MAP LOADING ───────────────────────────────────────────────────── */
+  .map-loading{display:none;position:absolute;inset:0;background:rgba(0,9,19,0.92);z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;}
+  .map-loading.show{display:flex;}
+  .loading-bar-wrap{width:200px;height:1px;background:#00d4ff22;}
+  .loading-bar{height:1px;background:#00d4ff;width:0;animation:load 8s linear forwards;}
+  @keyframes load{to{width:100%}}
+  .loading-text{font-size:10px;letter-spacing:3px;color:#00d4ff66;}
+  .loading-tab-name{font-size:13px;letter-spacing:2px;color:#00d4ff;}
+
+  /* ── EXCHANGE LABELS ───────────────────────────────────────────────── */
+  .ex-label{position:absolute;transform:translate(-50%,-50%);pointer-events:none;text-align:center;transition:opacity 0.3s;}
+  .ex-label .ex-name{font-family:'Rajdhani',sans-serif;font-size:7px;letter-spacing:1px;color:#00d4ff99;text-transform:uppercase;white-space:nowrap;}
+  .ex-label .ex-price{font-family:'Exo 2',sans-serif;font-size:9px;font-weight:600;color:#4df7ff;white-space:nowrap;}
+  .ex-label .ex-chg{font-family:'Rajdhani',sans-serif;font-size:7px;white-space:nowrap;}
+  .ex-label .ex-chg.up{color:#00ff88;}
+  .ex-label .ex-chg.down{color:#ff3d3d;}
+
+  /* ── GLOBE TOGGLE BUTTONS ──────────────────────────────────────────── */
+  .toggle-btn{background:rgba(0,9,19,0.9);border:1px solid rgba(74,122,138,0.4);color:#4a7a8a;font-family:'Rajdhani',sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;opacity:0.7;}
+  .toggle-btn:hover{border-color:#00d4ff66;color:#00d4ff;opacity:1;}
+  .toggle-btn.on{border-color:#00d4ff88;color:#00d4ff;opacity:1;}
+
+  /* ── RECON NAV BUTTONS ─────────────────────────────────────────────── */
+  .nav-btn{font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;padding:4px 14px;cursor:pointer;border:1px solid;transition:all 0.2s;}
+  .nav-btn.active{background:rgba(0,212,255,0.15);border-color:rgba(0,212,255,0.7);color:#00d4ff;}
+  .nav-btn.inactive{background:transparent;border-color:rgba(0,212,255,0.25);color:#4a7a8a;}
+
+  /* ── TF BUTTONS (RECON charts) ─────────────────────────────────────── */
   .tf-btn{background:transparent;border:1px solid #00d4ff22;color:#4a7a8a;font-family:'Rajdhani',sans-serif;font-size:7px;letter-spacing:1px;padding:2px 5px;cursor:pointer;transition:all 0.15s;}
   .tf-btn:hover{border-color:#00d4ff66;color:#00d4ff;}
   .tf-btn.active{background:rgba(0,212,255,0.15);border-color:rgba(0,212,255,0.6);color:#00d4ff;}
+
+  /* ── MISC ──────────────────────────────────────────────────────────── */
+  .btn-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;flex-shrink:0;}
+  .tool-btn{background:transparent;border:1px solid #00d4ff44;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;padding:4px 10px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;}
+  .tool-btn:hover{background:#00d4ff18;color:#4df7ff;}
+  ::-webkit-scrollbar{width:3px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#00d4ff33;border-radius:2px;}
 </style>
+</head>
 <body>
 <div class="dash">
 
+  <!-- TOPBAR -->
   <div class="topbar">
     <div class="logo">// <span>SENTINEL</span> //</div>
     <div class="topbar-center">
@@ -132,13 +142,14 @@
       <span><span class="live-dot green"></span>Live Feeds Active</span>
     </div>
     <div style="display:flex;gap:12px;align-items:center;">
-      <button id="nav-live" onclick="switchPage('live')" style="background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.7);color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;padding:4px 14px;cursor:pointer;">● LIVE</button>
-      <button id="nav-recon" onclick="switchPage('recon')" style="background:transparent;border:1px solid rgba(0,212,255,0.25);color:#4a7a8a;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;padding:4px 14px;cursor:pointer;">○ RECON</button>
+      <button id="nav-live" class="nav-btn active" onclick="switchPage('live')">&#9679; LIVE</button>
+      <button id="nav-recon" class="nav-btn inactive" onclick="switchPage('recon')">&#9675; RECON</button>
       <span id="date-display" style="font-size:10px;color:#4a7a8a;letter-spacing:2px;"></span>
       <span class="clock" id="clk">--:--:-- UTC</span>
     </div>
   </div>
 
+  <!-- TICKER TAPE -->
   <!-- LIVE TICKER TAPE -->
   <div class="ticker-bar">
     <div class="tradingview-widget-container">
@@ -171,281 +182,270 @@
       </script>
     </div>
 
-  <!-- LIVE PAGE -->
+  <!-- ═══════════════════════════════ LIVE PAGE ══════════════════════════════ -->
   <div id="page-live" class="main-layout">
     <!-- LEFT: MARKET DATA -->
-    <div class="side-panel">
-      <div class="panel" style="flex:1">
-        <div class="panel-inner">
-          <div class="panel-header">
-            <span class="panel-title">📈 Market Data</span>
-            <span class="panel-badge live">LIVE</span>
-          </div>
-          <div class="data-tabs">
-            <button class="data-tab active" id="dtab-futures" onclick="switchData('futures')">Futures</button>
-            <button class="data-tab"        id="dtab-commod"  onclick="switchData('commod')">Commod</button>
-            <button class="data-tab"        id="dtab-fx"      onclick="switchData('fx')">FX</button>
-            <button class="data-tab"        id="dtab-crypto"  onclick="switchData('crypto')">Crypto</button>
-            <button class="data-tab"        id="dtab-bonds"   onclick="switchData('bonds')">Bonds</button>
-          </div>
-
-          <div class="tv-wrap">
-
-            <!-- FUTURES -->
-            <div class="tv-panel active" id="dpanel-futures">
-              <div class="tradingview-widget-container" style="height:100%;width:100%">
-                <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
-                {"title":"Futures","symbols":[
-                  {"name":"US30","displayName":"DOW JONES","proName":"AMEX:DIA"},
-                  {"name":"US500","displayName":"S&P 500","proName":"AMEX:SPY"},
-                  {"name":"TECH100","displayName":"NASDAQ 100","proName":"NASDAQ:QQQ"},
-                  {"name":"SMALLCAP","displayName":"RUSSELL 2000","proName":"AMEX:IWM"},
-                  {"name":"VOLATILITY","displayName":"VIX (VIXY)","proName":"AMEX:VIXY"}
-                ],"colorTheme":"dark","isTransparent":true,"locale":"en","showSymbolLogo":false,"width":"100%","height":"100%"}</script>
+        <div class="side-panel">
+          <div class="panel" style="flex:1">
+            <div class="panel-inner">
+              <div class="panel-header">
+                <span class="panel-title">📈 Market Data</span>
+                <span class="panel-badge live">LIVE</span>
               </div>
-            </div>
-
-            <!-- COMMODITIES -->
-            <div class="tv-panel" id="dpanel-commod">
-              <div class="tradingview-widget-container" style="height:100%;width:100%">
-                <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
-                {"title":"Commodities","symbols":[
-                  {"name":"GOLD","displayName":"Gold","proName":"TVC:GOLD"},
-                  {"name":"SILVER","displayName":"Silver","proName":"TVC:SILVER"},
-                  {"name":"WTI OIL","displayName":"WTI Crude","proName":"TVC:USOIL"},
-                  {"name":"BRENT","displayName":"Brent Crude","proName":"TVC:UKOIL"},
-                  {"name":"NAT GAS","displayName":"Natural Gas","proName":"TVC:NATURALGAS"},
-                  {"name":"COPPER","displayName":"Copper","proName":"TVC:COPPER"},
-                  {"name":"PLATINUM","displayName":"Platinum","proName":"TVC:PLATINUM"},
-                  {"name":"PALLADIUM","displayName":"Palladium","proName":"TVC:PALLADIUM"},
-                  {"name":"WHEAT","displayName":"Wheat","proName":"AMEX:WEAT"},
-                  {"name":"CORN","displayName":"Corn","proName":"AMEX:CORN"}
-                ],"colorTheme":"dark","isTransparent":true,"locale":"en","showSymbolLogo":false,"width":"100%","height":"100%"}</script>
+              <div class="data-tabs">
+                <button class="data-tab active" id="dtab-futures" onclick="switchData('futures')">Futures</button>
+                <button class="data-tab"        id="dtab-commod"  onclick="switchData('commod')">Commod</button>
+                <button class="data-tab"        id="dtab-fx"      onclick="switchData('fx')">FX</button>
+                <button class="data-tab"        id="dtab-crypto"  onclick="switchData('crypto')">Crypto</button>
+                <button class="data-tab"        id="dtab-bonds"   onclick="switchData('bonds')">Bonds</button>
               </div>
-            </div>
-
-            <!-- FX -->
-            <div class="tv-panel" id="dpanel-fx">
-              <div class="tradingview-widget-container" style="height:100%;width:100%">
-                <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
-                {"title":"Forex","symbols":[
-                  {"name":"DXY","displayName":"Dollar Index","proName":"NASDAQ:UUP"},
-                  {"name":"EUR/USD","displayName":"EUR/USD","proName":"FX:EURUSD"},
-                  {"name":"GBP/USD","displayName":"GBP/USD","proName":"FX:GBPUSD"},
-                  {"name":"USD/JPY","displayName":"USD/JPY","proName":"FX:USDJPY"},
-                  {"name":"USD/CHF","displayName":"USD/CHF","proName":"FX:USDCHF"},
-                  {"name":"USD/CAD","displayName":"USD/CAD","proName":"FX:USDCAD"},
-                  {"name":"AUD/USD","displayName":"AUD/USD","proName":"FX:AUDUSD"},
-                  {"name":"NZD/USD","displayName":"NZD/USD","proName":"FX:NZDUSD"},
-                  {"name":"USD/CNH","displayName":"USD/CNH","proName":"FX:USDCNH"},
-                  {"name":"USD/MXN","displayName":"USD/MXN","proName":"FX:USDMXN"},
-                  {"name":"USD/TRY","displayName":"USD/TRY","proName":"FX:USDTRY"},
-                  {"name":"USD/ZAR","displayName":"USD/ZAR","proName":"FX:USDZAR"},
-                  {"name":"USD/BRL","displayName":"USD/BRL","proName":"FX:USDBRL"}
-                ],"colorTheme":"dark","isTransparent":true,"locale":"en","showSymbolLogo":false,"width":"100%","height":"100%"}</script>
-              </div>
-            </div>
-
-            <!-- CRYPTO -->
-            <div class="tv-panel" id="dpanel-crypto">
-              <div class="tradingview-widget-container" style="height:100%;width:100%">
-                <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
-                {"title":"Crypto","symbols":[
-                  {"name":"BTC","displayName":"Bitcoin","proName":"BINANCE:BTCUSDT"},
-                  {"name":"ETH","displayName":"Ethereum","proName":"BINANCE:ETHUSDT"},
-                  {"name":"SOL","displayName":"Solana","proName":"BINANCE:SOLUSDT"},
-                  {"name":"BNB","displayName":"BNB","proName":"BINANCE:BNBUSDT"},
-                  {"name":"XRP","displayName":"XRP","proName":"BINANCE:XRPUSDT"},
-                  {"name":"ADA","displayName":"Cardano","proName":"BINANCE:ADAUSDT"},
-                  {"name":"AVAX","displayName":"Avalanche","proName":"BINANCE:AVAXUSDT"},
-                  {"name":"LINK","displayName":"Chainlink","proName":"BINANCE:LINKUSDT"},
-                  {"name":"DOGE","displayName":"Dogecoin","proName":"BINANCE:DOGEUSDT"},
-                  {"name":"DOT","displayName":"Polkadot","proName":"BINANCE:DOTUSDT"}
-                ],"colorTheme":"dark","isTransparent":true,"locale":"en","showSymbolLogo":false,"width":"100%","height":"100%"}</script>
-              </div>
-            </div>
-
-            <!-- BONDS -->
-            <div class="tv-panel" id="dpanel-bonds">
-              <div class="tradingview-widget-container" style="height:100%;width:100%">
-                <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
-                {"title":"Bonds","symbols":[
-                  {"name":"US 10Y","displayName":"US 10Y Yield","proName":"FRED:DGS10"},
-                  {"name":"US 30Y","displayName":"US 30Y Yield","proName":"FRED:DGS30"},
-                  {"name":"US 2Y","displayName":"US 2Y Yield","proName":"FRED:DGS2"}
-                ],"colorTheme":"dark","isTransparent":true,"locale":"en","showSymbolLogo":false,"width":"100%","height":"100%"}</script>
-              </div>
-            </div>
-
-          </div><!-- tv-wrap -->
-        </div><!-- panel-inner -->
-      </div><!-- panel -->
-    </div><!-- side-panel LEFT -->
-
+    
+              <div class="tv-wrap">
+    
+                <!-- FUTURES -->
+                <div class="tv-panel active" id="dpanel-futures">
+                  <div class="tradingview-widget-container" style="height:100%;width:100%">
+                    <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
+                    {"title":"Futures","symbols":[
+                      {"name":"US30","displayName":"DOW JONES","proName":"AMEX:DIA"},
+                      {"name":"US500","displayName":"S&P 500","proName":"AMEX:SPY"},
+                      {"name":"TECH100","displayName":"NASDAQ 100","proName":"NASDAQ:QQQ"},
+                      {"name":"SMALLCAP","displayName":"RUSSELL 2000","proName":"AMEX:IWM"},
+                      {"name":"VOLATILITY","displayName":"VIX (VIXY)","proName":"AMEX:VIXY"}
+                    ],"colorTheme":"dark","isTransparent":true,"locale":"en","showSymbolLogo":false,"width":"100%","height":"100%"}</script>
+                  </div>
+                </div>
+    
+                <!-- COMMODITIES -->
+                <div class="tv-panel" id="dpanel-commod">
+                  <div class="tradingview-widget-container" style="height:100%;width:100%">
+                    <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
+                    {"title":"Commodities","symbols":[
+                      {"name":"GOLD","displayName":"Gold","proName":"TVC:GOLD"},
+                      {"name":"SILVER","displayName":"Silver","proName":"TVC:SILVER"},
+                      {"name":"WTI OIL","displayName":"WTI Crude","proName":"TVC:USOIL"},
+                      {"name":"BRENT","displayName":"Brent Crude","proName":"TVC:UKOIL"},
+                      {"name":"NAT GAS","displayName":"Natural Gas","proName":"TVC:NATURALGAS"},
+                      {"name":"COPPER","displayName":"Copper","proName":"TVC:COPPER"},
+                      {"name":"PLATINUM","displayName":"Platinum","proName":"TVC:PLATINUM"},
+                      {"name":"PALLADIUM","displayName":"Palladium","proName":"TVC:PALLADIUM"},
+                      {"name":"WHEAT","displayName":"Wheat","proName":"AMEX:WEAT"},
+                      {"name":"CORN","displayName":"Corn","proName":"AMEX:CORN"}
+                    ],"colorTheme":"dark","isTransparent":true,"locale":"en","showSymbolLogo":false,"width":"100%","height":"100%"}</script>
+                  </div>
+                </div>
+    
+                <!-- FX -->
+                <div class="tv-panel" id="dpanel-fx">
+                  <div class="tradingview-widget-container" style="height:100%;width:100%">
+                    <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
+                    {"title":"Forex","symbols":[
+                      {"name":"DXY","displayName":"Dollar Index","proName":"NASDAQ:UUP"},
+                      {"name":"EUR/USD","displayName":"EUR/USD","proName":"FX:EURUSD"},
+                      {"name":"GBP/USD","displayName":"GBP/USD","proName":"FX:GBPUSD"},
+                      {"name":"USD/JPY","displayName":"USD/JPY","proName":"FX:USDJPY"},
+                      {"name":"USD/CHF","displayName":"USD/CHF","proName":"FX:USDCHF"},
+                      {"name":"USD/CAD","displayName":"USD/CAD","proName":"FX:USDCAD"},
+                      {"name":"AUD/USD","displayName":"AUD/USD","proName":"FX:AUDUSD"},
+                      {"name":"NZD/USD","displayName":"NZD/USD","proName":"FX:NZDUSD"},
+                      {"name":"USD/CNH","displayName":"USD/CNH","proName":"FX:USDCNH"},
+                      {"name":"USD/MXN","displayName":"USD/MXN","proName":"FX:USDMXN"},
+                      {"name":"USD/TRY","displayName":"USD/TRY","proName":"FX:USDTRY"},
+                      {"name":"USD/ZAR","displayName":"USD/ZAR","proName":"FX:USDZAR"},
+                      {"name":"USD/BRL","displayName":"USD/BRL","proName":"FX:USDBRL"}
+                    ],"colorTheme":"dark","isTransparent":true,"locale":"en","showSymbolLogo":false,"width":"100%","height":"100%"}</script>
+                  </div>
+                </div>
+    
+                <!-- CRYPTO -->
+                <div class="tv-panel" id="dpanel-crypto">
+                  <div class="tradingview-widget-container" style="height:100%;width:100%">
+                    <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
+                    {"title":"Crypto","symbols":[
+                      {"name":"BTC","displayName":"Bitcoin","proName":"BINANCE:BTCUSDT"},
+                      {"name":"ETH","displayName":"Ethereum","proName":"BINANCE:ETHUSDT"},
+                      {"name":"SOL","displayName":"Solana","proName":"BINANCE:SOLUSDT"},
+                      {"name":"BNB","displayName":"BNB","proName":"BINANCE:BNBUSDT"},
+                      {"name":"XRP","displayName":"XRP","proName":"BINANCE:XRPUSDT"},
+                      {"name":"ADA","displayName":"Cardano","proName":"BINANCE:ADAUSDT"},
+                      {"name":"AVAX","displayName":"Avalanche","proName":"BINANCE:AVAXUSDT"},
+                      {"name":"LINK","displayName":"Chainlink","proName":"BINANCE:LINKUSDT"},
+                      {"name":"DOGE","displayName":"Dogecoin","proName":"BINANCE:DOGEUSDT"},
+                      {"name":"DOT","displayName":"Polkadot","proName":"BINANCE:DOTUSDT"}
+                    ],"colorTheme":"dark","isTransparent":true,"locale":"en","showSymbolLogo":false,"width":"100%","height":"100%"}</script>
+                  </div>
+                </div>
+    
+                <!-- BONDS -->
+                <div class="tv-panel" id="dpanel-bonds">
+                  <div class="tradingview-widget-container" style="height:100%;width:100%">
+                    <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
+                    {"title":"Bonds","symbols":[
+                      {"name":"US 10Y","displayName":"US 10Y Yield","proName":"FRED:DGS10"},
+                      {"name":"US 30Y","displayName":"US 30Y Yield","proName":"FRED:DGS30"},
+                      {"name":"US 2Y","displayName":"US 2Y Yield","proName":"FRED:DGS2"}
+                    ],"colorTheme":"dark","isTransparent":true,"locale":"en","showSymbolLogo":false,"width":"100%","height":"100%"}</script>
+                  </div>
+                </div>
+    
+              </div><!-- tv-wrap -->
+            </div><!-- panel-inner -->
+          </div><!-- panel -->
+        </div><!-- side-panel LEFT -->
     <!-- CENTER MAP -->
-    <div class="map-container">
-      <div class="corner c-tl"></div><div class="corner c-tr"></div>
-      <div class="corner c-bl"></div><div class="corner c-br"></div>
-      <div class="map-tabs">
-        <button class="map-tab amber active" id="tab-globe3d"  onclick="switchTab('globe3d')">🌐 Globe</button>
-        <button class="map-tab"            id="tab-ships"   onclick="switchTab('ships')">⚓ Ships</button>
-        <button class="map-tab"            id="tab-flights" onclick="switchTab('flights')">✈ Flights</button>
-        <button class="map-tab red"        id="tab-iran"    onclick="switchTab('iran')">🔴 Iran</button>
-        <button class="map-tab red"        id="tab-global"  onclick="switchTab('global')">🌍 Global</button>
-      </div>
-      <div class="map-frame-wrap">
-        <iframe id="mapFrame" src="about:blank" allowfullscreen style="display:none;"></iframe>
-
-        <!-- 3D Globe panel — shown when globe tab active -->
-        <div id="globePanel" style="position:absolute;inset:0;display:block;background:#000913;overflow:hidden;">
-          <canvas id="globeCanvas" style="width:100%;height:100%;display:block;cursor:grab;"></canvas>
-          <!-- Exchange labels overlay -->
-          <div id="exchangeLabels" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>
-
-          <!-- Disaster info popup -->
-          <div id="disasterPopup" style="display:none;position:absolute;z-index:20;max-width:280px;pointer-events:all;">
-            <div style="background:rgba(0,9,19,0.97);border:1px solid #ff8c00;padding:10px 12px;font-family:Rajdhani,sans-serif;position:relative;">
-              <button onclick="closeDisasterPopup()" style="position:absolute;top:4px;right:6px;background:transparent;border:none;color:#4a7a8a;font-size:14px;cursor:pointer;line-height:1;">✕</button>
-              <div id="popupType" style="font-size:8px;letter-spacing:2px;text-transform:uppercase;margin-bottom:3px;color:#ff8c00;"></div>
-              <div id="popupName" style="font-size:11px;font-weight:700;color:#ffffff;letter-spacing:1px;margin-bottom:2px;padding-right:16px;"></div>
-              <div id="popupTime" style="font-size:8px;color:#4a7a8a;letter-spacing:1px;margin-bottom:8px;"></div>
-              <div id="popupBody" style="font-size:10px;color:#a8e8f8;line-height:1.6;min-height:40px;"></div>
-              <div id="popupSource" style="font-size:8px;color:#4a7a8a;margin-top:6px;letter-spacing:1px;"></div>
-            </div>
-            <div style="width:1px;height:10px;background:#ff8c0088;margin:0 auto;"></div>
+        <div class="map-container">
+          <div class="corner c-tl"></div><div class="corner c-tr"></div>
+          <div class="corner c-bl"></div><div class="corner c-br"></div>
+          <div class="map-tabs">
+            <button class="map-tab amber active" id="tab-globe3d"  onclick="switchTab('globe3d')">🌐 Globe</button>
+            <button class="map-tab"            id="tab-ships"   onclick="switchTab('ships')">⚓ Ships</button>
+            <button class="map-tab"            id="tab-flights" onclick="switchTab('flights')">✈ Flights</button>
+            <button class="map-tab red"        id="tab-iran"    onclick="switchTab('iran')">🔴 Iran</button>
+            <button class="map-tab red"        id="tab-global"  onclick="switchTab('global')">🌍 Global</button>
           </div>
-
-          <!-- Toggle controls top-right -->
-          <div style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:10;">
-            <div style="font-size:7px;letter-spacing:2px;color:#00d4ff66;text-align:right;font-family:Rajdhani,sans-serif;margin-bottom:2px;">OVERLAY TOGGLES</div>
-            <button id="toggle-equities" onclick="toggleLayer('equities')"
-              style="background:rgba(0,9,19,0.9);border:1px solid rgba(0,212,255,0.6);color:#00d4ff;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;opacity:1;">
-              📈 EQUITIES ON
-            </button>
-            <button id="toggle-forex" onclick="toggleLayer('forex')"
-              style="background:rgba(0,9,19,0.9);border:1px solid rgba(74,122,138,0.4);color:#4a7a8a;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;opacity:0.5;">
-              💱 FOREX OFF
-            </button>
-            <button id="toggle-events" onclick="toggleLayer('events')"
-              style="background:rgba(0,9,19,0.9);border:1px solid rgba(74,122,138,0.4);color:#4a7a8a;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;opacity:0.5;">
-              ⚠ DISASTERS OFF
-            </button>
-            <button id="toggle-conflicts" onclick="toggleLayer('conflicts')"
-              style="background:rgba(0,9,19,0.9);border:1px solid rgba(74,122,138,0.4);color:#4a7a8a;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;opacity:0.5;">
-              ⚔ CONFLICTS OFF
-            </button>
-          </div>
-
-          <!-- Event legend bottom-left -->
-          <div style="position:absolute;bottom:8px;left:8px;pointer-events:none;background:rgba(0,9,19,0.85);border:1px solid #00d4ff22;padding:5px 8px;font-family:Rajdhani,sans-serif;">
-            <div style="font-size:7px;letter-spacing:2px;color:#00d4ff66;margin-bottom:3px;">LIVE EVENTS</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px 8px;">
-              <span style="font-size:8px;color:#ff0000;">● Conflict</span>
-              <span style="font-size:8px;color:#ff8c00;">● Earthquake</span>
-              <span style="font-size:8px;color:#cc44ff;">● Cyclone</span>
-              <span style="font-size:8px;color:#0088ff;">● Flood</span>
-              <span style="font-size:8px;color:#ff00ff;">● Volcano</span>
-              <span style="font-size:8px;color:#ff6600;">● Wildfire</span>
-              <span style="font-size:8px;color:#00ff44;">● Epidemic</span>
-              <span style="font-size:8px;color:#ffcc00;">● Drought</span>
+          <div class="map-frame-wrap">
+            <iframe id="mapFrame" src="about:blank" allowfullscreen style="display:none;"></iframe>
+    
+            <!-- 3D Globe panel — shown when globe tab active -->
+            <div id="globePanel" style="position:absolute;inset:0;display:block;background:#000913;overflow:hidden;">
+              <canvas id="globeCanvas" style="width:100%;height:100%;display:block;cursor:grab;"></canvas>
+              <!-- Exchange labels overlay -->
+              <div id="exchangeLabels" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>
+    
+              <!-- Disaster info popup -->
+              <div id="disasterPopup" style="display:none;position:absolute;z-index:20;max-width:280px;pointer-events:all;">
+                <div style="background:rgba(0,9,19,0.97);border:1px solid #ff8c00;padding:10px 12px;font-family:Rajdhani,sans-serif;position:relative;">
+                  <button onclick="closeDisasterPopup()" style="position:absolute;top:4px;right:6px;background:transparent;border:none;color:#4a7a8a;font-size:14px;cursor:pointer;line-height:1;">✕</button>
+                  <div id="popupType" style="font-size:8px;letter-spacing:2px;text-transform:uppercase;margin-bottom:3px;color:#ff8c00;"></div>
+                  <div id="popupName" style="font-size:11px;font-weight:700;color:#ffffff;letter-spacing:1px;margin-bottom:2px;padding-right:16px;"></div>
+                  <div id="popupTime" style="font-size:8px;color:#4a7a8a;letter-spacing:1px;margin-bottom:8px;"></div>
+                  <div id="popupBody" style="font-size:10px;color:#a8e8f8;line-height:1.6;min-height:40px;"></div>
+                  <div id="popupSource" style="font-size:8px;color:#4a7a8a;margin-top:6px;letter-spacing:1px;"></div>
+                </div>
+                <div style="width:1px;height:10px;background:#ff8c0088;margin:0 auto;"></div>
+              </div>
+    
+              <!-- Toggle controls top-right -->
+              <div style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:10;">
+                <div style="font-size:7px;letter-spacing:2px;color:#00d4ff66;text-align:right;font-family:Rajdhani,sans-serif;margin-bottom:2px;">OVERLAY TOGGLES</div>
+                <button id="toggle-equities" onclick="toggleLayer('equities')"
+                  style="background:rgba(0,9,19,0.9);border:1px solid rgba(0,212,255,0.6);color:#00d4ff;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;opacity:1;">
+                  📈 EQUITIES ON
+                </button>
+                <button id="toggle-forex" onclick="toggleLayer('forex')"
+                  style="background:rgba(0,9,19,0.9);border:1px solid rgba(74,122,138,0.4);color:#4a7a8a;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;opacity:0.5;">
+                  💱 FOREX OFF
+                </button>
+                <button id="toggle-events" onclick="toggleLayer('events')"
+                  style="background:rgba(0,9,19,0.9);border:1px solid rgba(74,122,138,0.4);color:#4a7a8a;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;opacity:0.5;">
+                  ⚠ DISASTERS OFF
+                </button>
+                <button id="toggle-conflicts" onclick="toggleLayer('conflicts')"
+                  style="background:rgba(0,9,19,0.9);border:1px solid rgba(74,122,138,0.4);color:#4a7a8a;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;opacity:0.5;">
+                  ⚔ CONFLICTS OFF
+                </button>
+              </div>
+    
+              <!-- Event legend bottom-left -->
+              <div style="position:absolute;bottom:8px;left:8px;pointer-events:none;background:rgba(0,9,19,0.85);border:1px solid #00d4ff22;padding:5px 8px;font-family:Rajdhani,sans-serif;">
+                <div style="font-size:7px;letter-spacing:2px;color:#00d4ff66;margin-bottom:3px;">LIVE EVENTS</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px 8px;">
+                  <span style="font-size:8px;color:#ff0000;">● Conflict</span>
+                  <span style="font-size:8px;color:#ff8c00;">● Earthquake</span>
+                  <span style="font-size:8px;color:#cc44ff;">● Cyclone</span>
+                  <span style="font-size:8px;color:#0088ff;">● Flood</span>
+                  <span style="font-size:8px;color:#ff00ff;">● Volcano</span>
+                  <span style="font-size:8px;color:#ff6600;">● Wildfire</span>
+                  <span style="font-size:8px;color:#00ff44;">● Epidemic</span>
+                  <span style="font-size:8px;color:#ffcc00;">● Drought</span>
+                </div>
+                <div style="font-size:7px;color:#4a7a8a;margin-top:2px;letter-spacing:1px;">DOT SIZE = SEVERITY · CLICK FOR LIVE BRIEFING</div>
+                <div id="globeDataStatus" style="font-size:7px;color:#4a7a8a;margin-top:3px;letter-spacing:1px;border-top:1px solid #00d4ff11;padding-top:3px;">
+                  ⏳ Loading disaster data...
+                </div>
+              </div>
             </div>
-            <div style="font-size:7px;color:#4a7a8a;margin-top:2px;letter-spacing:1px;">DOT SIZE = SEVERITY · CLICK FOR LIVE BRIEFING</div>
-            <div id="globeDataStatus" style="font-size:7px;color:#4a7a8a;margin-top:3px;letter-spacing:1px;border-top:1px solid #00d4ff11;padding-top:3px;">
-              ⏳ Loading disaster data...
+    
+            <div class="map-loading" id="mapLoading">
+              <div class="loading-tab-name" id="loadingTabName">IRAN</div>
+              <div class="loading-bar-wrap"><div class="loading-bar"></div></div>
+              <div class="loading-text">LOADING FEED...</div>
             </div>
           </div>
         </div>
-
-        <div class="map-loading" id="mapLoading">
-          <div class="loading-tab-name" id="loadingTabName">IRAN</div>
-          <div class="loading-bar-wrap"><div class="loading-bar"></div></div>
-          <div class="loading-text">LOADING FEED...</div>
-        </div>
-      </div>
-    </div>
     <!-- RIGHT -->
-    <div class="side-panel">
-
-      <!-- INTEL FEED — Telegram posts via CORS proxy -->
-      <div class="panel" style="flex:1">
-        <div class="panel-inner" style="padding:8px 6px;">
-          <div class="panel-header">
-            <span class="panel-title">📡 Intel Feed</span>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span class="panel-badge live" id="feedBadge">LOADING</span>
-              <button onclick="loadAllFeeds(false)" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:8px;padding:2px 7px;cursor:pointer;letter-spacing:1px;">↺</button>
+        <div class="side-panel">
+    
+          <!-- INTEL FEED — Telegram posts via CORS proxy -->
+          <div class="panel" style="flex:1">
+            <div class="panel-inner" style="padding:8px 6px;">
+              <div class="panel-header">
+                <span class="panel-title">📡 Intel Feed</span>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span class="panel-badge live" id="feedBadge">LOADING</span>
+                  <button onclick="loadAllFeeds(false)" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:8px;padding:2px 7px;cursor:pointer;letter-spacing:1px;">↺</button>
+                </div>
+              </div>
+    
+              <div id="intelFeed" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;font-size:10px;">
+                <div style="color:#4a7a8a;padding:12px 4px;text-align:center;letter-spacing:2px;font-size:9px;">◌ Loading live feed...</div>
+              </div>
+    
             </div>
           </div>
-
-          <div id="intelFeed" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;font-size:10px;">
-            <div style="color:#4a7a8a;padding:12px 4px;text-align:center;letter-spacing:2px;font-size:9px;">◌ Loading live feed...</div>
+    
+          <!-- OSINT RESOURCES — tiny strip at bottom -->
+          <div class="panel" style="flex:0;min-height:90px;">
+            <div class="panel-inner" style="padding:5px 8px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #00d4ff1a;flex-shrink:0;">
+                <span style="font-size:9px;letter-spacing:2px;color:#00d4ff66;text-transform:uppercase;font-weight:600;">🔗 OSINT</span>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                <a href="https://iran.liveuamap.com/" target="_blank" style="font-size:8px;color:#ff3d3d;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,61,61,0.3);padding:2px 6px;background:rgba(255,61,61,0.08);">Iran Map</a>
+                <a href="https://acleddata.com/iran-crisis-live" target="_blank" style="font-size:8px;color:#ff3d3d;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,61,61,0.3);padding:2px 6px;background:rgba(255,61,61,0.08);">ACLED</a>
+                <a href="https://globe.adsbexchange.com/?mil=1" target="_blank" style="font-size:8px;color:#cc88ff;letter-spacing:1px;text-decoration:none;border:1px solid rgba(180,0,255,0.3);padding:2px 6px;background:rgba(180,0,255,0.08);">ADS-B</a>
+                <a href="https://www.marinetraffic.com" target="_blank" style="font-size:8px;color:#00d4ff;letter-spacing:1px;text-decoration:none;border:1px solid #00d4ff33;padding:2px 6px;background:#00d4ff0a;">MarineTraffic</a>
+                <a href="https://www.tradingview.com/" target="_blank" style="font-size:8px;color:#00ff88;letter-spacing:1px;text-decoration:none;border:1px solid rgba(0,255,136,0.3);padding:2px 6px;background:rgba(0,255,136,0.06);">TradingView</a>
+                <a href="https://www.investing.com/" target="_blank" style="font-size:8px;color:#ffbb00;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,187,0,0.3);padding:2px 6px;background:rgba(255,187,0,0.06);">Investing</a>
+                <a href="https://liveuamap.com/" target="_blank" style="font-size:8px;color:#ffbb00;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,187,0,0.3);padding:2px 6px;background:rgba(255,187,0,0.06);">LiveUAMap</a>
+                <a href="https://www.intelsky.org/" target="_blank" style="font-size:8px;color:#cc88ff;letter-spacing:1px;text-decoration:none;border:1px solid rgba(180,0,255,0.3);padding:2px 6px;background:rgba(180,0,255,0.08);">IntelSky</a>
+              </div>
+            </div>
           </div>
-
+    
         </div>
-      </div>
+  </div>
 
-      <!-- OSINT RESOURCES — tiny strip at bottom -->
-      <div class="panel" style="flex:0;min-height:90px;">
-        <div class="panel-inner" style="padding:5px 8px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #00d4ff1a;flex-shrink:0;">
-            <span style="font-size:9px;letter-spacing:2px;color:#00d4ff66;text-transform:uppercase;font-weight:600;">🔗 OSINT</span>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:4px;">
-            <a href="https://iran.liveuamap.com/" target="_blank" style="font-size:8px;color:#ff3d3d;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,61,61,0.3);padding:2px 6px;background:rgba(255,61,61,0.08);">Iran Map</a>
-            <a href="https://acleddata.com/iran-crisis-live" target="_blank" style="font-size:8px;color:#ff3d3d;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,61,61,0.3);padding:2px 6px;background:rgba(255,61,61,0.08);">ACLED</a>
-            <a href="https://globe.adsbexchange.com/?mil=1" target="_blank" style="font-size:8px;color:#cc88ff;letter-spacing:1px;text-decoration:none;border:1px solid rgba(180,0,255,0.3);padding:2px 6px;background:rgba(180,0,255,0.08);">ADS-B</a>
-            <a href="https://www.marinetraffic.com" target="_blank" style="font-size:8px;color:#00d4ff;letter-spacing:1px;text-decoration:none;border:1px solid #00d4ff33;padding:2px 6px;background:#00d4ff0a;">MarineTraffic</a>
-            <a href="https://www.tradingview.com/" target="_blank" style="font-size:8px;color:#00ff88;letter-spacing:1px;text-decoration:none;border:1px solid rgba(0,255,136,0.3);padding:2px 6px;background:rgba(0,255,136,0.06);">TradingView</a>
-            <a href="https://www.investing.com/" target="_blank" style="font-size:8px;color:#ffbb00;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,187,0,0.3);padding:2px 6px;background:rgba(255,187,0,0.06);">Investing</a>
-            <a href="https://liveuamap.com/" target="_blank" style="font-size:8px;color:#ffbb00;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,187,0,0.3);padding:2px 6px;background:rgba(255,187,0,0.06);">LiveUAMap</a>
-            <a href="https://www.intelsky.org/" target="_blank" style="font-size:8px;color:#cc88ff;letter-spacing:1px;text-decoration:none;border:1px solid rgba(180,0,255,0.3);padding:2px 6px;background:rgba(180,0,255,0.08);">IntelSky</a>
-          </div>
-        </div>
-      </div>
+  <!-- ══════════════════════════════ RECON PAGE ══════════════════════════════ -->
+  <div id="page-recon" class="main-layout" style="display:none;">
 
-    </div>
-
-  </div><!-- end right side-panel -->
-  <!-- RECON PAGE -->
-  <div id="page-recon" style="display:none;" class="main-layout">
-
-    <!-- LEFT — placeholder for future sentiment/fear&greed/yield curve -->
+    <!-- LEFT: coming soon -->
     <div class="side-panel">
       <div class="panel" style="flex:1;">
         <div class="panel-inner" style="align-items:center;justify-content:center;">
           <div style="text-align:center;color:#4a7a8a;">
-            <div style="font-size:28px;margin-bottom:12px;">📊</div>
+            <div style="font-size:28px;margin-bottom:12px;">&#128202;</div>
             <div style="font-size:9px;letter-spacing:3px;color:#00d4ff44;">COMING SOON</div>
-            <div style="font-size:8px;letter-spacing:2px;margin-top:8px;line-height:1.8;">
-              Sentiment Gauges<br>
-              Fear & Greed Meter<br>
-              Yield Curve<br>
-            </div>
+            <div style="font-size:8px;letter-spacing:2px;margin-top:8px;line-height:1.8;">Sentiment Gauges<br>Fear &amp; Greed<br>Yield Curve</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- CENTER — 2x2 Chart Grid -->
-    <div class="map-container" style="padding:6px;overflow:hidden;">
-
-      <div style="font-size:8px;letter-spacing:3px;color:#00d4ff66;padding:0 2px 6px;border-bottom:1px solid #00d4ff22;flex-shrink:0;">
-        📊 CHARTS // Type any symbol · Select timeframe
-      </div>
-
-      <!-- Top row -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;min-height:0;margin-top:6px;">
-
+    <!-- CENTER: 2x2 charts -->
+    <div class="map-container" style="padding:6px;">
+      <div style="font-size:8px;letter-spacing:3px;color:#00d4ff66;padding:0 2px 6px;border-bottom:1px solid #00d4ff22;flex-shrink:0;">&#128202; CHARTS // Type symbol &middot; Select timeframe</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;flex:1;min-height:0;margin-top:6px;">
         <!-- Chart 1 -->
         <div style="background:#000d1a;border:1px solid #00d4ff22;display:flex;flex-direction:column;min-height:0;">
-          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;background:#000913;">
-            <input id="chart1-sym" value="AMEX:SPY" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:110px;" onchange="reloadChart(1)"/>
-            <div style="display:flex;gap:3px;margin-left:auto;">
+          <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;">
+            <input id="chart1-sym" value="AMEX:SPY" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:Rajdhani,sans-serif;font-size:9px;padding:2px 4px;width:110px;" onchange="reloadChart(1)"/>
+            <div style="display:flex;gap:2px;margin-left:auto;">
               <button onclick="setTF(1,'1')" class="tf-btn" data-chart="1">1m</button>
               <button onclick="setTF(1,'5')" class="tf-btn" data-chart="1">5m</button>
               <button onclick="setTF(1,'60')" class="tf-btn active" data-chart="1">1H</button>
@@ -455,12 +455,11 @@
           </div>
           <div id="chart1-container" style="flex:1;min-height:0;"></div>
         </div>
-
         <!-- Chart 2 -->
         <div style="background:#000d1a;border:1px solid #00d4ff22;display:flex;flex-direction:column;min-height:0;">
-          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;background:#000913;">
-            <input id="chart2-sym" value="TVC:GOLD" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:110px;" onchange="reloadChart(2)"/>
-            <div style="display:flex;gap:3px;margin-left:auto;">
+          <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;">
+            <input id="chart2-sym" value="TVC:GOLD" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:Rajdhani,sans-serif;font-size:9px;padding:2px 4px;width:110px;" onchange="reloadChart(2)"/>
+            <div style="display:flex;gap:2px;margin-left:auto;">
               <button onclick="setTF(2,'1')" class="tf-btn" data-chart="2">1m</button>
               <button onclick="setTF(2,'5')" class="tf-btn" data-chart="2">5m</button>
               <button onclick="setTF(2,'60')" class="tf-btn active" data-chart="2">1H</button>
@@ -470,17 +469,11 @@
           </div>
           <div id="chart2-container" style="flex:1;min-height:0;"></div>
         </div>
-
-      </div>
-
-      <!-- Bottom row -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;min-height:0;margin-top:6px;">
-
         <!-- Chart 3 -->
         <div style="background:#000d1a;border:1px solid #00d4ff22;display:flex;flex-direction:column;min-height:0;">
-          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;background:#000913;">
-            <input id="chart3-sym" value="BINANCE:BTCUSDT" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:110px;" onchange="reloadChart(3)"/>
-            <div style="display:flex;gap:3px;margin-left:auto;">
+          <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;">
+            <input id="chart3-sym" value="BINANCE:BTCUSDT" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:Rajdhani,sans-serif;font-size:9px;padding:2px 4px;width:110px;" onchange="reloadChart(3)"/>
+            <div style="display:flex;gap:2px;margin-left:auto;">
               <button onclick="setTF(3,'1')" class="tf-btn" data-chart="3">1m</button>
               <button onclick="setTF(3,'5')" class="tf-btn" data-chart="3">5m</button>
               <button onclick="setTF(3,'60')" class="tf-btn active" data-chart="3">1H</button>
@@ -490,12 +483,11 @@
           </div>
           <div id="chart3-container" style="flex:1;min-height:0;"></div>
         </div>
-
         <!-- Chart 4 -->
         <div style="background:#000d1a;border:1px solid #00d4ff22;display:flex;flex-direction:column;min-height:0;">
-          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;background:#000913;">
-            <input id="chart4-sym" value="FX:EURUSD" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:110px;" onchange="reloadChart(4)"/>
-            <div style="display:flex;gap:3px;margin-left:auto;">
+          <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;">
+            <input id="chart4-sym" value="FX:EURUSD" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:Rajdhani,sans-serif;font-size:9px;padding:2px 4px;width:110px;" onchange="reloadChart(4)"/>
+            <div style="display:flex;gap:2px;margin-left:auto;">
               <button onclick="setTF(4,'1')" class="tf-btn" data-chart="4">1m</button>
               <button onclick="setTF(4,'5')" class="tf-btn" data-chart="4">5m</button>
               <button onclick="setTF(4,'60')" class="tf-btn active" data-chart="4">1H</button>
@@ -505,31 +497,26 @@
           </div>
           <div id="chart4-container" style="flex:1;min-height:0;"></div>
         </div>
-
       </div>
-
     </div>
 
-    <!-- RIGHT — placeholder for future calendars/CB tracker -->
+    <!-- RIGHT: coming soon -->
     <div class="side-panel">
       <div class="panel" style="flex:1;">
         <div class="panel-inner" style="align-items:center;justify-content:center;">
           <div style="text-align:center;color:#4a7a8a;">
-            <div style="font-size:28px;margin-bottom:12px;">📅</div>
+            <div style="font-size:28px;margin-bottom:12px;">&#128197;</div>
             <div style="font-size:9px;letter-spacing:3px;color:#00d4ff44;">COMING SOON</div>
-            <div style="font-size:8px;letter-spacing:2px;margin-top:8px;line-height:1.8;">
-              Economic Calendar<br>
-              Earnings Calendar<br>
-              Central Bank Tracker<br>
-            </div>
+            <div style="font-size:8px;letter-spacing:2px;margin-top:8px;line-height:1.8;">Economic Calendar<br>Earnings Calendar<br>CB Tracker</div>
           </div>
         </div>
       </div>
     </div>
 
-  </div><!-- end main-layout -->
+  </div><!-- end recon main-layout -->
+  </div><!-- end page-recon -->
 
-</div>
+</div><!-- end dash -->
 
 <script>
 function tick(){
