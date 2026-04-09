@@ -779,7 +779,7 @@ html, body {
         <div class="panel-inner" style="padding:5px 8px;flex-direction:row;align-items:center;gap:8px;">
           <span style="font-size:8px;letter-spacing:2px;color:#00d4ff55;white-space:nowrap;">&#128293; MACRO</span>
           <div id="macro-signals" style="flex:1;display:flex;flex-wrap:wrap;gap:3px;overflow:hidden;"></div>
-          <button onclick="testMacroStack()" style="background:rgba(0,212,255,0.08);border:1px solid #00d4ff33;color:#4a7a8a;font-family:Rajdhani,sans-serif;font-size:7px;letter-spacing:1px;padding:2px 6px;cursor:pointer;white-space:nowrap;">TEST</button>
+          <button onclick="testMacroStack()" style="background:rgba(255,136,0,0.12);border:1px solid rgba(255,136,0,0.5);color:#ff8800;font-family:Rajdhani,sans-serif;font-size:7px;letter-spacing:1.5px;padding:3px 8px;cursor:pointer;white-space:nowrap;font-weight:700;" title="Test macro stack alert">&#128293; TEST</button>
         </div>
       </div>
 
@@ -1362,31 +1362,138 @@ var EXCHANGES = [
   {id:'tase',     label:'TASE',    lon:34.78,  lat:32.08}
 ];
 
-var exPrices = {};
-EXCHANGES.forEach(function(e){
-  exPrices[e.id] = { price: (Math.random()*10000+1000).toFixed(2), chg: ((Math.random()-0.5)*2).toFixed(2) };
-});
-
-/* Forex dots */
+/* Forex dots — positions on globe */
 var FOREX_DOTS = [
-  {id:'fx-eur', label:'EUR/USD', lon:2.35,    lat:48.86},
-  {id:'fx-gbp', label:'GBP/USD', lon:-0.09,   lat:51.51},
-  {id:'fx-jpy', label:'USD/JPY', lon:139.76,  lat:35.68},
-  {id:'fx-cny', label:'USD/CNY', lon:116.40,  lat:39.90},
-  {id:'fx-cad', label:'USD/CAD', lon:-79.38,  lat:43.65},
-  {id:'fx-aud', label:'AUD/USD', lon:151.21,  lat:-33.87},
-  {id:'fx-inr', label:'USD/INR', lon:72.88,   lat:18.93},
-  {id:'fx-brl', label:'USD/BRL', lon:-46.63,  lat:-23.55},
-  {id:'fx-rub', label:'USD/RUB', lon:37.62,   lat:55.75},
-  {id:'fx-zar', label:'USD/ZAR', lon:28.04,   lat:-26.20},
-  {id:'fx-try', label:'USD/TRY', lon:28.98,   lat:41.01},
-  {id:'fx-sgd', label:'USD/SGD', lon:103.82,  lat:1.28}
+  {id:'fx-eur', label:'EUR/USD', lon:2.35,   lat:48.86},
+  {id:'fx-gbp', label:'GBP/USD', lon:-0.09,  lat:51.51},
+  {id:'fx-jpy', label:'USD/JPY', lon:139.76, lat:35.68},
+  {id:'fx-cny', label:'USD/CNY', lon:116.40, lat:39.90},
+  {id:'fx-cad', label:'USD/CAD', lon:-79.38, lat:43.65},
+  {id:'fx-aud', label:'AUD/USD', lon:151.21, lat:-33.87},
+  {id:'fx-inr', label:'USD/INR', lon:72.88,  lat:18.93},
+  {id:'fx-brl', label:'USD/BRL', lon:-46.63, lat:-23.55},
+  {id:'fx-rub', label:'USD/RUB', lon:37.62,  lat:55.75},
+  {id:'fx-zar', label:'USD/ZAR', lon:28.04,  lat:-26.20},
+  {id:'fx-try', label:'USD/TRY', lon:28.98,  lat:41.01},
+  {id:'fx-sgd', label:'USD/SGD', lon:103.82, lat:1.28}
 ];
 
+var FINNHUB_KEY = 'd7btmf9r01quh9fbnr4gd7btmf9r01quh9fbnr50';
+
+/* Finnhub symbol map — each exchange represented by its liquid US-listed ETF proxy */
+var EX_SYMBOLS = {
+  nyse:     'SPY',   nasdaq:  'QQQ',   tsx:     'EWC',
+  lse:      'EWU',   euronext:'EWQ',   deutsche:'EWG',
+  hkex:     'EWH',   sse:     'FXI',   szse:    'CQQQ',
+  tse:      'EWJ',   bse:     'INDA',  krx:     'EWY',
+  asx:      'EWA',   b3:      'EWZ',   jse:     'EZA',
+  moex:     'RSX',   tadawul: 'KSA',   sgx:     'EWS',
+  six:      'EWL',   bmv:     'EWW',   bist:    'TUR',
+  twse:     'EWT',   idx:     'EIDO',  dfm:     'UAE',
+  tase:     'ISRA'
+};
+
+/* Finnhub forex symbols */
+var FX_SYMBOLS = {
+  'fx-eur':'EUR/USD', 'fx-gbp':'GBP/USD', 'fx-jpy':'USD/JPY',
+  'fx-cny':'USD/CNY', 'fx-cad':'USD/CAD', 'fx-aud':'AUD/USD',
+  'fx-inr':'USD/INR', 'fx-brl':'USD/BRL', 'fx-rub':'USD/RUB',
+  'fx-zar':'USD/ZAR', 'fx-try':'USD/TRY', 'fx-sgd':'USD/SGD'
+};
+
+/* Price stores — initialised empty, filled by Finnhub */
+var exPrices = {};
+EXCHANGES.forEach(function(e){
+  exPrices[e.id] = { price:'--', chg:'0.00', dec:2 };
+});
 var fxPrices = {};
 FOREX_DOTS.forEach(function(f){
-  fxPrices[f.id] = { price: (Math.random()*100+1).toFixed(4), chg: ((Math.random()-0.5)*2).toFixed(2) };
+  fxPrices[f.id] = { price:'--', chg:'0.00', dec:4 };
 });
+
+/* ── Finnhub fetcher ─────────────────────────────────────── */
+var fhQueue   = [];   // symbols waiting to be fetched
+var fhFetching = false;
+
+function fhEnqueueAll() {
+  fhQueue = [];
+  /* Exchanges */
+  EXCHANGES.forEach(function(e) {
+    var sym = EX_SYMBOLS[e.id];
+    if (sym) fhQueue.push({ type:'ex', id:e.id, sym:sym });
+  });
+  /* Forex */
+  FOREX_DOTS.forEach(function(f) {
+    var sym = FX_SYMBOLS[f.id];
+    if (sym) fhQueue.push({ type:'fx', id:f.id, sym:sym });
+  });
+  if (!fhFetching) fhDrain();
+}
+
+/* Process queue one symbol every 1.1s — stays well under 60/min */
+function fhDrain() {
+  if (!fhQueue.length) { fhFetching = false; return; }
+  fhFetching = true;
+  var item = fhQueue.shift();
+  fhFetch(item, function() {
+    setTimeout(fhDrain, 1100);
+  });
+}
+
+function fhFetch(item, cb) {
+  var url;
+  if (item.type === 'fx') {
+    /* Finnhub forex quote endpoint */
+    url = 'https://finnhub.io/api/v1/forex/candle?symbol=OANDA:' +
+          item.sym.replace('/','_') +
+          '&resolution=D&count=2&token=' + FINNHUB_KEY;
+  } else {
+    /* Finnhub stock quote endpoint */
+    url = 'https://finnhub.io/api/v1/quote?symbol=' + item.sym +
+          '&token=' + FINNHUB_KEY;
+  }
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 8000;
+  xhr.onload = function() {
+    try {
+      if (xhr.status === 200) {
+        var d = JSON.parse(xhr.responseText);
+        if (item.type === 'fx') {
+          /* Forex candle: c = close array, pc = prev close */
+          if (d.c && d.c.length >= 2) {
+            var curr = d.c[d.c.length-1];
+            var prev = d.c[d.c.length-2];
+            var chg  = prev ? ((curr-prev)/prev*100) : 0;
+            fxPrices[item.id] = {
+              price: curr.toFixed(4),
+              chg:   chg.toFixed(2),
+              dec:   4
+            };
+          }
+        } else {
+          /* Stock quote: c = current, pc = prev close */
+          if (d.c && d.c > 0) {
+            var chg = d.pc ? ((d.c-d.pc)/d.pc*100) : 0;
+            exPrices[item.id] = {
+              price: d.c.toFixed(2),
+              chg:   chg.toFixed(2),
+              dec:   2
+            };
+          }
+        }
+      }
+    } catch(e) {}
+    cb();
+  };
+  xhr.onerror = xhr.ontimeout = function(){ cb(); };
+  xhr.send();
+}
+
+/* Fetch all on load then every 45 seconds */
+fhEnqueueAll();
+setInterval(fhEnqueueAll, 45000);
 
 /* Static conflict zones */
 var CONFLICTS = [
@@ -1422,23 +1529,6 @@ var COUNTRY_NAMES = {
   804:'Ukraine',784:'UAE',826:'United Kingdom',840:'United States',
   862:'Venezuela',704:'Vietnam',887:'Yemen',716:'Zimbabwe'
 };
-
-/* Simulate price ticks */
-function tickPrices() {
-  EXCHANGES.forEach(function(e){
-    var p = exPrices[e.id];
-    var vol = parseFloat(p.price) * 0.0008;
-    p.price  = (parseFloat(p.price) + (Math.random()-0.49)*vol).toFixed(2);
-    p.chg    = ((Math.random()-0.5)*4).toFixed(2);
-  });
-  FOREX_DOTS.forEach(function(f){
-    var p = fxPrices[f.id];
-    var vol = parseFloat(p.price) * 0.0005;
-    p.price = (parseFloat(p.price) + (Math.random()-0.49)*vol).toFixed(4);
-    p.chg   = ((Math.random()-0.5)*2).toFixed(2);
-  });
-}
-setInterval(tickPrices, 3000);
 
 /* Load GDACS disaster data */
 function loadGDACS() {
@@ -1789,7 +1879,8 @@ function updateForexLabels(proj, placed) {
   var container = document.getElementById('forexLabels');
   var html = '';
   // Forex uses its OWN placed array — doesn't block equities
-  // Instead, forex labels are offset 55px to the right of their coordinate
+  // Forex labels offset: +40px right, +30px down from coordinate
+  // This keeps them near their country but clearly separate from equity cards above
   var fxPlaced = [];
 
   FOREX_DOTS.forEach(function(f) {
@@ -1802,8 +1893,8 @@ function updateForexLabels(proj, placed) {
     if (!v) return;
 
     // Offset forex label to the right so it sits beside any equity label at same location
-    var ox = v[0] + 55;
-    var oy = v[1];
+    var ox = v[0] + 40;
+    var oy = v[1] + 30;
 
     // Only check against other forex labels (not equities)
     var tooClose = fxPlaced.some(function(p) {
@@ -1914,11 +2005,15 @@ function showPopup(ev, x, y) {
     if (data.content && Array.isArray(data.content)) {
       data.content.forEach(function(b){ if (b.type==='text') text += b.text; });
     }
-    document.getElementById('popup-body').textContent = text.trim() || 'No briefing available.';
-    document.getElementById('popup-source').textContent = '&#128269; Live web search · ' + (ev.source||'') + (ev.utcTime ? ' · ' + ev.utcTime + ' UTC' : '');
+    if (text.trim()) {
+      document.getElementById('popup-body').textContent = text.trim();
+      document.getElementById('popup-source').textContent = '&#128269; Live search · ' + (ev.source||'') + (ev.utcTime ? ' · ' + ev.utcTime + ' UTC' : '');
+    }
   })
-    // Keep static info shown above if no API credits
-    document.getElementById('popup-body').textContent = 'Briefing unavailable. Add Anthropic API credits to Netlify for live summaries.';
+  .catch(function(){
+    if (!ev.note) {
+      document.getElementById('popup-body').textContent = 'Add Anthropic API credits to Netlify for live briefings.';
+    }
   });
 }
 
@@ -1995,95 +2090,276 @@ function initGlobe() {
    CORRELATION ALERTS
    Monitors price relationships, fires when thresholds crossed
 ───────────────────────────────────────────────────────────── */
-var correlationAlerts = [];
-var lastAlertTime = 0;
+/* ─────────────────────────────────────────────────────────────
+   REAL PRICE DATA — Twelve Data + FRED
+   These are the ONLY prices used for macro/correlation logic.
+   Globe exchange labels remain decorative (visual only).
+───────────────────────────────────────────────────────────── */
+var TD_KEY = 'cadcb99db1c44ea48c75c1f4670fa507';
 
-var CORRELATIONS = [
-  { name:'Oil → CAD',         check: function(p){ return Math.abs(p.oil) > 1.5 && Math.sign(p.oil) !== Math.sign(p.cadusd); }, msg: function(p){ return 'WTI Oil ' + fmtChg(p.oil) + ' → CAD/USD typically follows'; } },
-  { name:'DXY → Gold Inverse',check: function(p){ return Math.abs(p.dxy) > 0.8 && Math.sign(p.dxy) !== Math.sign(p.gold); }, msg: function(p){ return 'DXY ' + fmtChg(p.dxy) + ' with Gold ' + fmtChg(p.gold) + ' — inverse correlation active'; } },
-  { name:'VIX → SPY Inverse', check: function(p){ return Math.abs(p.vix) > 3 && Math.sign(p.vix) !== Math.sign(p.spy);  }, msg: function(p){ return 'VIX ' + fmtChg(p.vix) + ' with SPY ' + fmtChg(p.spy) + ' — fear spike detected'; } },
-  { name:'AUD → Copper',      check: function(p){ return Math.abs(p.copper) > 1.2 && Math.sign(p.copper) === Math.sign(p.audusd); }, msg: function(p){ return 'Copper ' + fmtChg(p.copper) + ' with AUD/USD ' + fmtChg(p.audusd) + ' — commodity correlation'; } }
-];
+// Stores real % change from previous close for each instrument
+var realPrices = {
+  gold:   null,  // TVC:GOLD via TD
+  oil:    null,  // WTI via TD (USOIL)
+  spy:    null,  // SPY
+  vixy:   null,  // VIXY (VIX proxy)
+  uup:    null,  // UUP (DXY proxy)
+  btc:    null,  // BTC/USD
+  usdjpy: null,  // USD/JPY
+  usdchf: null,  // USD/CHF
+  audusd: null,  // AUD/USD
+  cadusd: null,  // USD/CAD (inverted for CAD strength)
+  spread: null   // 10Y - 2Y yield spread from FRED
+};
+
+var realPricesReady = false;
+var realPricesLastFetch = 0;
+
+// Twelve Data batch quote — fetch all equity/forex in one call
+var TD_SYMBOLS = 'SPY,VIXY,UUP,BTC/USD:Bitfinex,XAU/USD,USOIL,USD/JPY,USD/CHF,AUD/USD,USD/CAD';
+
+function fetchRealPrices() {
+  var now = Date.now();
+  if (now - realPricesLastFetch < 55000) return; // max once per minute
+  realPricesLastFetch = now;
+
+  var url = 'https://api.twelvedata.com/quote?symbol=' + encodeURIComponent(TD_SYMBOLS) +
+            '&apikey=' + TD_KEY;
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    if (xhr.status !== 200) return;
+    try {
+      var data = JSON.parse(xhr.responseText);
+      function pct(d) {
+        if (!d || d.status === 'error') return null;
+        var close = parseFloat(d.close);
+        var prev  = parseFloat(d.previous_close);
+        if (!close || !prev) return null;
+        return ((close - prev) / prev) * 100;
+      }
+      realPrices.spy    = pct(data['SPY']);
+      realPrices.vixy   = pct(data['VIXY']);
+      realPrices.uup    = pct(data['UUP']);
+      realPrices.btc    = pct(data['BTC/USD:Bitfinex'] || data['BTC/USD']);
+      realPrices.gold   = pct(data['XAU/USD']);
+      realPrices.oil    = pct(data['USOIL']);
+      realPrices.usdjpy = pct(data['USD/JPY']);
+      realPrices.usdchf = pct(data['USD/CHF']);
+      realPrices.audusd = pct(data['AUD/USD']);
+      // CAD strength = inverse of USD/CAD
+      var cadraw = pct(data['USD/CAD']);
+      realPrices.cadusd = cadraw !== null ? -cadraw : null;
+
+      realPricesReady = true;
+      updateMacroStatusBar();
+      console.log('SENTINEL: Real prices loaded', realPrices);
+    } catch(e) { console.log('TD parse error', e); }
+  };
+  xhr.onerror = xhr.ontimeout = function() { console.log('TD fetch failed'); };
+  xhr.send();
+}
+
+// Fetch FRED 10Y and 2Y yields for yield curve spread
+function fetchYieldSpread() {
+  // FRED series: DGS10 and DGS2 — daily, free, no key
+  var url10 = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(
+    'https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&vintage_date=' + getTodayStr()
+  );
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url10, true);
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    if (xhr.status !== 200) return;
+    try {
+      var lines = xhr.responseText.trim().split('\n');
+      var last10 = parseFloat(lines[lines.length-1].split(',')[1]);
+      // Now get 2Y
+      var url2 = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(
+        'https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS2&vintage_date=' + getTodayStr()
+      );
+      var xhr2 = new XMLHttpRequest();
+      xhr2.open('GET', url2, true);
+      xhr2.timeout = 15000;
+      xhr2.onload = function() {
+        if (xhr2.status !== 200) return;
+        try {
+          var lines2 = xhr2.responseText.trim().split('\n');
+          var last2 = parseFloat(lines2[lines2.length-1].split(',')[1]);
+          realPrices.spread = last10 - last2; // positive = normal, negative = inverted
+          updateMacroStatusBar();
+        } catch(e) {}
+      };
+      xhr2.send();
+    } catch(e) {}
+  };
+  xhr.send();
+}
+
+function getTodayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+
+// Fetch real prices every 60 seconds, yield spread once per hour
+fetchRealPrices();
+fetchYieldSpread();
+setInterval(fetchRealPrices, 60000);
+setInterval(fetchYieldSpread, 3600000);
+
+/* ─────────────────────────────────────────────────────────────
+   CORRELATION ALERTS — real prices only
+───────────────────────────────────────────────────────────── */
+var lastAlertTime = 0;
 
 function fmtChg(v) { return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
 
-function getPriceChanges() {
-  /* Pull simulated price changes from exPrices/fxPrices as proxies */
-  return {
-    oil:    parseFloat(exPrices['b3']   ? exPrices['b3'].chg   : 0),
-    gold:   parseFloat(exPrices['jse']  ? exPrices['jse'].chg  : 0),
-    spy:    parseFloat(exPrices['nyse'] ? exPrices['nyse'].chg : 0),
-    dxy:    parseFloat(fxPrices['fx-sgd']? fxPrices['fx-sgd'].chg : 0),
-    vix:    parseFloat(exPrices['nasdaq']? exPrices['nasdaq'].chg : 0),
-    cadusd: parseFloat(fxPrices['fx-cad']? fxPrices['fx-cad'].chg : 0),
-    audusd: parseFloat(fxPrices['fx-aud']? fxPrices['fx-aud'].chg : 0),
-    copper: parseFloat(exPrices['krx']  ? exPrices['krx'].chg  : 0)
-  };
-}
+var CORRELATIONS = [
+  {
+    name: 'Oil → CAD',
+    check: function(p) {
+      return p.oil !== null && p.cadusd !== null &&
+             Math.abs(p.oil) > 1.5 &&
+             Math.sign(p.oil) === Math.sign(p.cadusd);
+    },
+    msg: function(p) { return 'WTI Oil ' + fmtChg(p.oil) + ' — CAD ' + fmtChg(p.cadusd) + ' moving together (commodity currency link)'; }
+  },
+  {
+    name: 'DXY ↔ Gold inverse',
+    check: function(p) {
+      return p.uup !== null && p.gold !== null &&
+             Math.abs(p.uup) > 0.5 &&
+             Math.sign(p.uup) !== Math.sign(p.gold);
+    },
+    msg: function(p) { return 'DXY ' + fmtChg(p.uup) + ' vs Gold ' + fmtChg(p.gold) + ' — dollar/gold inverse correlation active'; }
+  },
+  {
+    name: 'VIX ↔ SPY inverse',
+    check: function(p) {
+      return p.vixy !== null && p.spy !== null &&
+             Math.abs(p.vixy) > 4 &&
+             Math.sign(p.vixy) !== Math.sign(p.spy);
+    },
+    msg: function(p) { return 'VIXY ' + fmtChg(p.vixy) + ' vs SPY ' + fmtChg(p.spy) + ' — fear spike, equity sell-off'; }
+  },
+  {
+    name: 'AUD ↔ Gold',
+    check: function(p) {
+      return p.audusd !== null && p.gold !== null &&
+             Math.abs(p.gold) > 1.0 &&
+             Math.sign(p.audusd) === Math.sign(p.gold);
+    },
+    msg: function(p) { return 'Gold ' + fmtChg(p.gold) + ' with AUD/USD ' + fmtChg(p.audusd) + ' — commodity currency correlation'; }
+  },
+  {
+    name: 'JPY safe haven',
+    check: function(p) {
+      // JPY strengthening = USD/JPY falling
+      return p.usdjpy !== null && p.spy !== null &&
+             p.usdjpy < -0.5 && p.spy < -0.5;
+    },
+    msg: function(p) { return 'USD/JPY ' + fmtChg(p.usdjpy) + ' with SPY ' + fmtChg(p.spy) + ' — yen safe haven flow'; }
+  },
+  {
+    name: 'Yield curve inversion',
+    check: function(p) {
+      return p.spread !== null && p.spread < -0.2;
+    },
+    msg: function(p) { return '10Y-2Y spread: ' + p.spread.toFixed(2) + '% — yield curve inverted (recession signal)'; }
+  }
+];
 
 function checkCorrelations() {
+  if (!realPricesReady) return;
   var now = Date.now();
-  if (now - lastAlertTime < 30000) return; /* max one alert per 30s */
-  var p = getPriceChanges();
+  if (now - lastAlertTime < 120000) return; // max one alert per 2 mins
+  var p = realPrices;
   for (var i = 0; i < CORRELATIONS.length; i++) {
     var c = CORRELATIONS[i];
-    if (c.check(p)) {
-      showAlert('correlation', '&#9889; CORRELATION: ' + c.name, c.msg(p));
-      lastAlertTime = now;
-      return;
-    }
+    try {
+      if (c.check(p)) {
+        showAlert('correlation', '&#9889; CORRELATION: ' + c.name, c.msg(p));
+        lastAlertTime = now;
+        return;
+      }
+    } catch(e) {}
   }
 }
 
 setInterval(checkCorrelations, 60000);
 
 /* ─────────────────────────────────────────────────────────────
-   MACRO CONFIRMATION STACK
-   Fires when 3+ signals align simultaneously
+   MACRO CONFIRMATION STACK — real prices only
+   Fires when 3+ signals align
 ───────────────────────────────────────────────────────────── */
 var macroLastFire = 0;
 
-function updateMacroStatus(signals, totalSignals, regime, color) {
+function updateMacroStatusBar() {
   var el = document.getElementById('macro-signals');
   if (!el) return;
-  if (!signals.length) {
-    el.innerHTML = '<span style="font-size:8px;color:#4a7a8a;letter-spacing:1px;">No signals aligned</span>';
+
+  if (!realPricesReady) {
+    el.innerHTML = '<span style="font-size:8px;color:#4a7a8a;letter-spacing:1px;">Fetching live prices...</span>';
     return;
   }
-  el.innerHTML = signals.map(function(s) {
+
+  // Show current signal count
+  var result = getMacroSignals();
+  if (!result.signals.length) {
+    el.innerHTML = '<span style="font-size:8px;color:#4a7a8a;letter-spacing:1px;">0 signals — market neutral</span>';
+    return;
+  }
+  var color = result.riskOff > result.riskOn ? '#ff8800' : '#00ff88';
+  el.innerHTML = result.signals.map(function(s) {
     return '<span style="font-size:7px;padding:1px 4px;background:rgba(0,212,255,0.08);border:1px solid #00d4ff22;color:#a8e8f8;white-space:nowrap;">' + s + '</span>';
-  }).join('');
+  }).join('') + '<span style="font-size:7px;color:' + color + ';margin-left:4px;font-weight:700;">' +
+    result.signals.length + ' SIGNALS</span>';
+}
+
+function getMacroSignals() {
+  var p = realPrices;
+  var signals = [], riskOff = 0, riskOn = 0;
+
+  // Risk-off signals
+  if (p.gold  !== null && p.gold  > 1.0) { signals.push('Gold '  + fmtChg(p.gold));  riskOff++; }
+  if (p.oil   !== null && p.oil   > 1.5) { signals.push('Oil '   + fmtChg(p.oil));   riskOff++; }
+  if (p.spy   !== null && p.spy   < -1.0){ signals.push('SPY '   + fmtChg(p.spy));   riskOff++; }
+  if (p.uup   !== null && p.uup   > 0.5) { signals.push('DXY '   + fmtChg(p.uup));   riskOff++; }
+  if (p.vixy  !== null && p.vixy  > 5.0) { signals.push('VIX '   + fmtChg(p.vixy));  riskOff++; }
+  if (p.usdjpy !== null && p.usdjpy < -0.5){ signals.push('JPY haven'); riskOff++; }
+  if (p.usdchf !== null && p.usdchf < -0.5){ signals.push('CHF haven'); riskOff++; }
+  if (p.spread !== null && p.spread < -0.2){ signals.push('Curve inv ' + p.spread.toFixed(2) + '%'); riskOff++; }
+  if (globalEvents.some(function(e){ return e.severity==='Red'; })) { signals.push('GDACS Red'); riskOff++; }
+  if (globalEvents.some(function(e){ return e.type==='earthquake' && e.severity==='Red'; })) { signals.push('M7.5+ EQ'); riskOff++; }
+
+  // Risk-on signals
+  if (p.spy   !== null && p.spy   > 1.0) { signals.push('SPY '   + fmtChg(p.spy));   riskOn++; }
+  if (p.gold  !== null && p.gold  < -0.8){ signals.push('Gold '  + fmtChg(p.gold));  riskOn++; }
+  if (p.btc   !== null && p.btc   > 3.0) { signals.push('BTC '   + fmtChg(p.btc));   riskOn++; }
+  if (p.audusd !== null && p.audusd > 0.5){ signals.push('AUD/USD '+ fmtChg(p.audusd)); riskOn++; }
+
+  return { signals:signals, riskOff:riskOff, riskOn:riskOn };
 }
 
 function checkMacroStack() {
+  if (!realPricesReady) return;
   var now = Date.now();
-  if (now - macroLastFire < 120000) return;
+  if (now - macroLastFire < 300000) return; // max once per 5 mins
 
-  var p = getPriceChanges();
-  var signals = [];
-  var riskOff = 0, riskOn = 0;
+  var result = getMacroSignals();
+  updateMacroStatusBar();
 
-  if (p.gold > 1.0)  { signals.push('Gold +' + p.gold.toFixed(1) + '%'); riskOff++; }
-  if (p.oil > 1.5)   { signals.push('Oil +' + p.oil.toFixed(1) + '%'); riskOff++; }
-  if (p.spy < -1.0)  { signals.push('SPY ' + p.spy.toFixed(1) + '%'); riskOff++; }
-  if (p.dxy > 0.5)   { signals.push('DXY +' + p.dxy.toFixed(1) + '%'); riskOff++; }
-  if (p.vix > 5)     { signals.push('VIX +' + p.vix.toFixed(1) + '%'); riskOff++; }
-  if (p.cadusd < -0.5){ signals.push('CAD safe haven'); riskOff++; }
-  if (globalEvents.some(function(e){ return e.severity==='Red'; })) { signals.push('GDACS Red'); riskOff++; }
-  if (globalEvents.some(function(e){ return e.type==='earthquake' && e.severity==='Red'; })) { signals.push('M7.5+ EQ'); riskOff++; }
-  if (p.spy > 1.0)   { signals.push('SPY +' + p.spy.toFixed(1) + '%'); riskOn++; }
-  if (p.gold < -0.8) { signals.push('Gold ' + p.gold.toFixed(1) + '%'); riskOn++; }
-  if (p.copper > 1.2){ signals.push('Copper +' + p.copper.toFixed(1) + '%'); riskOn++; }
-
-  var totalSignals = Math.max(riskOff, riskOn);
-  updateMacroStatus(signals, totalSignals, riskOff > riskOn ? 'RISK-OFF' : 'RISK-ON');
-
+  var totalSignals = Math.max(result.riskOff, result.riskOn);
   if (totalSignals >= 3) {
-    var regime = riskOff > riskOn ? 'RISK-OFF' : 'RISK-ON';
-    var color  = riskOff > riskOn ? '#ff8800' : '#00ff88';
+    var regime = result.riskOff > result.riskOn ? 'RISK-OFF' : 'RISK-ON';
+    var color  = result.riskOff > result.riskOn ? '#ff8800' : '#00ff88';
     showAlert('macro',
-      '&#128293; MACRO STACK — ' + totalSignals + '/8 SIGNALS — ' + regime,
-      signals.join(' &middot; '),
+      '&#128293; MACRO STACK — ' + totalSignals + ' SIGNALS — ' + regime,
+      result.signals.join(' &middot; '),
       color
     );
     macroLastFire = now;
@@ -2091,13 +2367,18 @@ function checkMacroStack() {
 }
 
 function testMacroStack() {
-  /* Force a test alert so you can see it working */
   showAlert('macro',
-    '&#128293; MACRO STACK TEST — 5/8 SIGNALS — RISK-OFF',
+    '&#128293; MACRO STACK TEST — 5 SIGNALS — RISK-OFF',
     'Gold +2.1% &middot; Oil +1.8% &middot; SPY -1.3% &middot; DXY +0.7% &middot; GDACS Red',
     '#ff8800'
   );
-  updateMacroStatus(['Gold +2.1%','Oil +1.8%','SPY -1.3%','DXY +0.7%','GDACS Red'], 5, 'RISK-OFF');
+  document.getElementById('macro-signals').innerHTML =
+    '<span style="font-size:7px;padding:1px 4px;background:rgba(0,212,255,0.08);border:1px solid #00d4ff22;color:#a8e8f8;">Gold +2.1%</span>' +
+    '<span style="font-size:7px;padding:1px 4px;background:rgba(0,212,255,0.08);border:1px solid #00d4ff22;color:#a8e8f8;">Oil +1.8%</span>' +
+    '<span style="font-size:7px;padding:1px 4px;background:rgba(0,212,255,0.08);border:1px solid #00d4ff22;color:#a8e8f8;">SPY -1.3%</span>' +
+    '<span style="font-size:7px;padding:1px 4px;background:rgba(0,212,255,0.08);border:1px solid #00d4ff22;color:#a8e8f8;">DXY +0.7%</span>' +
+    '<span style="font-size:7px;padding:1px 4px;background:rgba(0,212,255,0.08);border:1px solid #00d4ff22;color:#a8e8f8;">GDACS Red</span>' +
+    '<span style="font-size:7px;color:#ff8800;margin-left:4px;font-weight:700;">5 SIGNALS</span>';
 }
 
 setInterval(checkMacroStack, 90000);
@@ -2134,7 +2415,7 @@ function dismissAlert() {
 
 window.addEventListener('load', function(){
   setTimeout(initGlobe, 300);
-  setTimeout(checkMacroStack, 5000);
+  setTimeout(checkMacroStack, 8000); // check after real prices load (TD fetch takes ~2s)
 });
 </script>
 </body>
