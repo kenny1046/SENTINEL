@@ -64,8 +64,8 @@
   .data-tab{flex:1;background:transparent;border:1px solid #00d4ff22;color:#4a7a8a;font-family:'Rajdhani',sans-serif;font-size:8px;letter-spacing:1.5px;padding:3px 2px;cursor:pointer;transition:all 0.15s;text-transform:uppercase;}
   .data-tab.active{background:rgba(0,212,255,0.12);border-color:#00d4ff66;color:#00d4ff;}
   .data-tab:hover{border-color:#00d4ff44;color:#00b8d9;}
-  .tv-wrap{flex:1;min-height:0;position:relative;overflow:hidden;}
-  .tv-panel{display:none;position:absolute;inset:0;}
+  .tv-wrap{flex:1;min-height:0;position:relative;overflow:hidden;height:100%;}
+  .tv-panel{display:none;position:absolute;inset:0;overflow:hidden;}
   .tv-panel.active{display:block;}
 
   /* ── MAP TABS ──────────────────────────────────────────────────────── */
@@ -382,7 +382,7 @@
         <div class="side-panel">
     
           <!-- INTEL FEED — Telegram posts via CORS proxy -->
-          <div class="panel" style="flex:1">
+          <div class="panel" style="flex:1;min-height:0;overflow:hidden;">
             <div class="panel-inner" style="padding:8px 6px;">
               <div class="panel-header">
                 <span class="panel-title">📡 Intel Feed</span>
@@ -400,7 +400,7 @@
           </div>
     
           <!-- OSINT RESOURCES — tiny strip at bottom -->
-          <div class="panel" style="flex:0;min-height:90px;">
+          <div class="panel" style="flex-shrink:0;min-height:100px;max-height:130px;">
             <div class="panel-inner" style="padding:5px 8px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #00d4ff1a;flex-shrink:0;">
                 <span style="font-size:9px;letter-spacing:2px;color:#00d4ff66;text-transform:uppercase;font-weight:600;">🔗 OSINT</span>
@@ -647,7 +647,7 @@ var loading=document.getElementById('mapLoading');
 var loadingName=document.getElementById('loadingTabName');
 
 // Init globe immediately on load
-window.addEventListener('load', function(){ initGlobe(); });
+window.addEventListener('load', function(){ setTimeout(function(){ initGlobe(); }, 200); });
 // ── Telegram Feed ─────────────────────────────────────────────────────────
 var TG_CHANNELS = [
   { name:'FinancialJuice', color:'#ffbb00', url:'https://t.me/s/FinancialJuice' },
@@ -1153,8 +1153,12 @@ function initGlobe() {
   var container = document.getElementById('globePanel');
 
   function resize(){
-    var w=container.offsetWidth||800, h=container.offsetHeight||600;
-    globeCanvas.width=w; globeCanvas.height=h;
+    var w = container.offsetWidth || container.parentElement.offsetWidth || 800;
+    var h = container.offsetHeight || container.parentElement.offsetHeight || 600;
+    if(w < 10) w = 800;
+    if(h < 10) h = 600;
+    globeCanvas.width = w;
+    globeCanvas.height = h;
   }
   resize();
   window.addEventListener('resize',function(){resize();gDrawGlobe();});
