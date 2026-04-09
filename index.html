@@ -172,11 +172,11 @@
     </div>
 
   <!-- PAGES WRAPPER -->
-  <div style="flex:1;min-height:0;position:relative;overflow:hidden;">
+  <div style="min-height:0;height:100%;position:relative;overflow:hidden;">
 
     <!-- PAGE: LIVE -->
-    <div id="page-live" style="position:absolute;inset:0;">
-<div class="main-layout" style="flex:1;min-height:0;">
+    <div id="page-live" style="position:absolute;inset:0;display:grid;grid-template-rows:1fr;">
+<div class="main-layout" style="min-height:0;height:100%;">
 
     <!-- LEFT: MARKET DATA -->
     <div class="side-panel">
@@ -420,8 +420,8 @@
     </div>
 
     <!-- PAGE: RECON -->
-    <div id="page-recon" style="position:absolute;inset:0;display:none;">
-<div class="main-layout" style="flex:1;min-height:0;">
+    <div id="page-recon" style="position:absolute;inset:0;display:none;grid-template-rows:1fr;">
+<div class="main-layout" style="min-height:0;height:100%;">
 
     <!-- LEFT — placeholder for future sentiment/fear&greed/yield curve -->
     <div class="side-panel">
@@ -569,7 +569,7 @@ function switchPage(page) {
   setTimeout(function() {
     fromEl.style.display = 'none';
     fromEl.classList.remove('fading');
-    toEl.style.display = 'flex';
+    toEl.style.display = 'grid';
     toEl.classList.add('fading');
     setTimeout(function() { toEl.classList.remove('fading'); }, 20);
 
