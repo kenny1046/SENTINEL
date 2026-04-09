@@ -9,7 +9,12 @@
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{width:100%;height:100%;background:#000913;color:#00d4ff;font-family:'Rajdhani',sans-serif;overflow:hidden;}
   body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.025) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
-  .dash{position:relative;z-index:1;width:100vw;height:100vh;display:grid;grid-template-rows:auto auto 1fr;gap:0;padding:8px 8px 8px 8px;}
+  .dash{position:relative;z-index:1;width:100vw;height:100vh;display:grid;grid-template-rows:auto auto 1fr;gap:0;padding:8px;}
+  #page-live, #page-recon{min-height:0;height:100%;}
+  .page-content{transition:opacity 0.3s ease;}
+  .tf-btn{background:transparent;border:1px solid #00d4ff22;color:#4a7a8a;font-family:'Rajdhani',sans-serif;font-size:7px;letter-spacing:1px;padding:2px 5px;cursor:pointer;transition:all 0.15s;}
+  .tf-btn:hover{border-color:#00d4ff66;color:#00d4ff;}
+  .tf-btn.active{background:rgba(0,212,255,0.15);border-color:rgba(0,212,255,0.6);color:#00d4ff;}
 
   .topbar{display:flex;align-items:center;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid #00d4ff55;position:relative;flex-shrink:0;}
   .topbar::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#00d4ff,transparent);opacity:0.5;}
@@ -113,21 +118,17 @@
   .tf-btn:hover{border-color:#00d4ff66;color:#00d4ff;}
   .tf-btn.active{background:rgba(0,212,255,0.15);border-color:rgba(0,212,255,0.6);color:#00d4ff;}
 </style>
-</head>
 <body>
 <div class="dash">
 
   <div class="topbar">
     <div class="logo">// <span>SENTINEL</span> //</div>
-
-    <!-- Page navigation — centered -->
-    <div style="display:flex;gap:6px;align-items:center;position:absolute;left:50%;transform:translateX(-50%);">
-      <button id="nav-live" onclick="switchPage('live')" style="background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.7);color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;padding:5px 16px;cursor:pointer;transition:all 0.2s;">● LIVE</button>
-      <button id="nav-recon" onclick="switchPage('recon')" style="background:transparent;border:1px solid rgba(0,212,255,0.25);color:#4a7a8a;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;padding:5px 16px;cursor:pointer;transition:all 0.2s;">○ RECON</button>
-    </div>
-
     <div class="topbar-center">
-      <span><span class="live-dot red"></span>Nominal</span>
+      <span>Geopolitical Intelligence Platform</span>
+      <span class="sep">|</span>
+      <span>Classification: Unclassified // OSINT</span>
+      <span class="sep">|</span>
+      <span><span class="live-dot red"></span>Systems Nominal</span>
       <span class="sep">|</span>
       <span><span class="live-dot green"></span>Live Feeds Active</span>
     </div>
@@ -171,13 +172,8 @@
       </script>
     </div>
 
-  <!-- PAGES WRAPPER -->
-  <div style="min-height:0;height:100%;position:relative;overflow:hidden;">
-
-    <!-- PAGE: LIVE -->
-    <div id="page-live" style="position:absolute;inset:0;display:grid;grid-template-rows:1fr;">
-<div class="main-layout" style="min-height:0;height:100%;">
-
+  <!-- LIVE PAGE -->
+  <div id="page-live" class="main-layout">
     <!-- LEFT: MARKET DATA -->
     <div class="side-panel">
       <div class="panel" style="flex:1">
@@ -290,7 +286,6 @@
         </div>
       </div>
     </div>
-
     <!-- CENTER MAP -->
     <div class="map-container">
       <div class="corner c-tl"></div><div class="corner c-tr"></div>
@@ -372,7 +367,6 @@
         </div>
       </div>
     </div>
-
     <!-- RIGHT -->
     <div class="side-panel">
 
@@ -418,10 +412,11 @@
   </div><!-- end right side-panel -->
   </div><!-- end main-layout -->
     </div>
+  </div>
 
-    <!-- PAGE: RECON -->
-    <div id="page-recon" style="position:absolute;inset:0;display:none;grid-template-rows:1fr;">
-<div class="main-layout" style="min-height:0;height:100%;">
+  <!-- RECON PAGE -->
+  <div id="page-recon" style="display:none;" class="main-layout">
+    <div class="main-layout" style="min-height:0;height:100%;">
 
     <!-- LEFT — placeholder for future sentiment/fear&greed/yield curve -->
     <div class="side-panel">
@@ -536,13 +531,9 @@
       </div>
     </div>
 
-  </div>
   </div><!-- end main-layout -->
-    </div>
 
-  </div><!-- end pages wrapper -->
-
-</div><!-- end dash -->
+</div>
 
 <script>
 function tick(){
@@ -564,18 +555,16 @@ function switchPage(page) {
   var navFrom = document.getElementById('nav-' + currentPage);
   var navTo   = document.getElementById('nav-' + page);
 
-  // Fade out
-  fromEl.classList.add('fading');
+  fromEl.style.opacity = '0';
   setTimeout(function() {
     fromEl.style.display = 'none';
-    fromEl.classList.remove('fading');
+    fromEl.style.opacity = '1';
     toEl.style.display = 'grid';
-    toEl.classList.add('fading');
-    setTimeout(function() { toEl.classList.remove('fading'); }, 20);
+    toEl.style.opacity = '0';
+    setTimeout(function(){ toEl.style.opacity = '1'; }, 20);
 
-    // Update nav buttons
     navFrom.style.background = 'transparent';
-    navFrom.style.borderColor = 'rgba(0,212,255,0.2)';
+    navFrom.style.borderColor = 'rgba(0,212,255,0.25)';
     navFrom.style.color = '#4a7a8a';
     navFrom.textContent = '○ ' + currentPage.toUpperCase();
     navTo.style.background = 'rgba(0,212,255,0.15)';
@@ -585,12 +574,11 @@ function switchPage(page) {
 
     currentPage = page;
 
-    // Init charts when first switching to RECON
     if (page === 'recon' && !chartsInitialized) {
       chartsInitialized = true;
       setTimeout(initCharts, 100);
     }
-  }, 350);
+  }, 300);
 }
 
 // ── Chart timeframes ──────────────────────────────────────────────────────────
