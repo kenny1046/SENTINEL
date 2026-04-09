@@ -247,65 +247,67 @@ html, body {
   margin-top:-8px;
 }
 .ex-card {
-  background:rgba(0,9,19,0.82);
-  border:1px solid rgba(0,212,255,0.35);
-  border-radius:2px;
-  padding:3px 6px;
+  background:rgba(0,9,25,0.93);
+  border:1px solid rgba(0,212,255,0.7);
+  border-radius:3px;
+  padding:6px 12px;
   white-space:nowrap;
-  backdrop-filter:blur(2px);
+  backdrop-filter:blur(4px);
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:1px;
-  min-width:64px;
+  gap:2px;
+  min-width:90px;
+  box-shadow:0 0 16px rgba(0,212,255,0.2), inset 0 0 8px rgba(0,212,255,0.05);
 }
 .ex-dot {
-  width:5px; height:5px;
+  width:7px; height:7px;
   border-radius:50%;
   background:#00d4ff;
-  box-shadow:0 0 6px #00d4ff;
+  box-shadow:0 0 12px #00d4ff;
   position:absolute;
-  bottom:-8px; left:50%;
+  bottom:-11px; left:50%;
   transform:translateX(-50%);
 }
 .ex-stem {
-  width:1px; height:6px;
-  background:rgba(0,212,255,0.4);
+  width:1px; height:8px;
+  background:rgba(0,212,255,0.6);
   position:absolute;
-  bottom:-7px; left:50%;
+  bottom:-9px; left:50%;
   transform:translateX(-50%);
 }
-.ex-name  { font-size:7px; letter-spacing:1.5px; color:#00d4ffaa; text-transform:uppercase; white-space:nowrap; }
-.ex-price { font-size:10px; font-weight:700; color:#ffffff; white-space:nowrap; font-family:'Exo 2',sans-serif; }
-.ex-chg   { font-size:8px; white-space:nowrap; font-weight:600; }
+.ex-name  { font-size:9px; letter-spacing:1.5px; color:#00d4ff; text-transform:uppercase; white-space:nowrap; }
+.ex-price { font-size:14px; font-weight:700; color:#ffffff; white-space:nowrap; font-family:'Exo 2',sans-serif; letter-spacing:0.5px; }
+.ex-chg   { font-size:9px; white-space:nowrap; font-weight:600; }
 .ex-chg.up   { color:#00ff88; }
 .ex-chg.down { color:#ff4455; }
 /* Forex card — amber variant */
 .fx-card {
-  background:rgba(12,8,0,0.82);
-  border:1px solid rgba(255,187,0,0.35);
-  border-radius:2px;
-  padding:3px 6px;
+  background:rgba(20,12,0,0.93);
+  border:1px solid rgba(255,187,0,0.7);
+  border-radius:3px;
+  padding:6px 12px;
   white-space:nowrap;
-  backdrop-filter:blur(2px);
+  backdrop-filter:blur(4px);
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:1px;
-  min-width:64px;
+  gap:2px;
+  min-width:90px;
+  box-shadow:0 0 16px rgba(255,187,0,0.18), inset 0 0 8px rgba(255,187,0,0.04);
 }
 .fx-dot {
-  width:5px; height:5px;
+  width:7px; height:7px;
   border-radius:50%;
   background:#ffbb00;
-  box-shadow:0 0 6px #ffbb00;
+  box-shadow:0 0 12px #ffbb00;
   position:absolute;
-  bottom:-8px; left:50%;
+  bottom:-11px; left:50%;
   transform:translateX(-50%);
 }
-.fx-name  { font-size:7px; letter-spacing:1.5px; color:#ffbb00aa; text-transform:uppercase; white-space:nowrap; }
-.fx-price { font-size:10px; font-weight:700; color:#ffdd88; white-space:nowrap; font-family:'Exo 2',sans-serif; }
-.fx-chg   { font-size:8px; white-space:nowrap; font-weight:600; }
+.fx-name  { font-size:9px; letter-spacing:1.5px; color:#ffbb00; text-transform:uppercase; white-space:nowrap; }
+.fx-price { font-size:14px; font-weight:700; color:#ffee99; white-space:nowrap; font-family:'Exo 2',sans-serif; letter-spacing:0.5px; }
+.fx-chg   { font-size:9px; white-space:nowrap; font-weight:600; }
 /* Globe toggles */
 #globe-toggles {
   position:absolute; top:8px; right:8px;
@@ -701,10 +703,13 @@ html, body {
           <!-- Toggle buttons -->
           <div id="globe-toggles">
             <div style="font-size:7px;letter-spacing:2px;color:#00d4ff55;margin-bottom:2px;text-align:right;">OVERLAY TOGGLES</div>
-            <button class="g-toggle on"  id="tog-equities"  onclick="toggleLayer('equities')">&#128200; EQUITIES ON</button>
-            <button class="g-toggle"     id="tog-forex"     onclick="toggleLayer('forex')">&#128177; FOREX OFF</button>
-            <button class="g-toggle"     id="tog-events"    onclick="toggleLayer('events')">&#9888; DISASTERS OFF</button>
-            <button class="g-toggle"     id="tog-conflicts" onclick="toggleLayer('conflicts')">&#9876; CONFLICTS OFF</button>
+            <button class="g-toggle on"  id="tog-equities"   onclick="toggleLayer('equities')">&#128200; EQUITIES ON</button>
+            <button class="g-toggle"     id="tog-forex"      onclick="toggleLayer('forex')">&#128177; FOREX OFF</button>
+            <button class="g-toggle"     id="tog-events"     onclick="toggleLayer('events')">&#9888; DISASTERS OFF</button>
+            <button class="g-toggle"     id="tog-conflicts"  onclick="toggleLayer('conflicts')">&#9876; CONFLICTS OFF</button>
+            <button class="g-toggle on"  id="tog-chokepoints" onclick="toggleLayer('chokepoints')">&#9875; CHOKEPOINTS ON</button>
+            <button class="g-toggle"     id="tog-bases"      onclick="toggleLayer('bases')">&#129686; MIL BASES OFF</button>
+            <button class="g-toggle"     id="tog-tension"    onclick="toggleLayer('tension')">&#127777; TENSION OFF</button>
           </div>
 
           <!-- Legend -->
@@ -719,6 +724,8 @@ html, body {
               <span style="color:#ff6600;">&#9679; Wildfire</span>
               <span style="color:#00ff44;">&#9679; Epidemic</span>
               <span style="color:#ffcc00;">&#9679; Drought</span>
+              <span style="color:#00ffff;">&#9671; Chokepoint</span>
+              <span style="color:#4488ff;">&#9632; Mil Base</span>
             </div>
             <div style="font-size:7px;color:#4a7a8a;margin-top:3px;letter-spacing:1px;">DOT SIZE = SEVERITY &middot; CLICK FOR BRIEFING</div>
             <div id="globe-status" style="font-size:7px;color:#4a7a8a;margin-top:2px;letter-spacing:1px;">&#8987; Loading data...</div>
@@ -786,6 +793,9 @@ html, body {
 
     </div><!-- /right-col -->
   </div><!-- /page-live -->
+
+  <!-- ALERT BANNER -->
+  <div id="alert-banner" style="display:none;flex-shrink:0;margin-top:4px;"></div>
 
   <!-- ═══════════════════════════════════════════════════════
        RECON PAGE
@@ -1175,7 +1185,103 @@ function initCharts() {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   3D GLOBE
+   PHASE 1 DATA
+───────────────────────────────────────────────────────────── */
+
+/* Maritime Chokepoints */
+var CHOKEPOINTS = [
+  { id:'redsea',   name:'Bab el-Mandeb / Red Sea',    lat:12.5,  lon:43.3,  status:'Red',    note:'Active Houthi attacks on shipping' },
+  { id:'hormuz',   name:'Strait of Hormuz',            lat:26.6,  lon:56.3,  status:'Orange', note:'Iranian tensions, elevated monitoring' },
+  { id:'suez',     name:'Suez Canal',                  lat:30.7,  lon:32.3,  status:'Green',  note:'Operational — reduced traffic due to Red Sea' },
+  { id:'panama',   name:'Panama Canal',                lat:9.1,   lon:-79.7, status:'Yellow', note:'Low water levels restricting transit' },
+  { id:'malacca',  name:'Strait of Malacca',           lat:1.3,   lon:103.8, status:'Green',  note:'Nominal operations' },
+  { id:'bosphorus',name:'Bosphorus Strait',            lat:41.1,  lon:29.0,  status:'Green',  note:'Nominal operations' }
+];
+
+var CHOKEPOINT_COLORS = { Red:'#ff2222', Orange:'#ff8800', Yellow:'#ffdd00', Green:'#00ff88' };
+
+/* Major Military Bases */
+var MILITARY_BASES = [
+  /* USA / NATO — Blue */
+  { name:'Ramstein AB (USA/NATO)',      lat:49.4,  lon:7.6,    nation:'usa' },
+  { name:'RAF Lakenheath (USAF)',       lat:52.4,  lon:0.6,    nation:'usa' },
+  { name:'Incirlik AB (NATO)',          lat:37.0,  lon:35.4,   nation:'nato' },
+  { name:'Camp Lemonnier (USA)',        lat:11.5,  lon:43.1,   nation:'usa' },
+  { name:'Al Udeid AB (USA/Qatar)',     lat:25.1,  lon:51.3,   nation:'usa' },
+  { name:'Camp Arifjan (USA/Kuwait)',   lat:29.1,  lon:47.9,   nation:'usa' },
+  { name:'Diego Garcia (USA/UK)',       lat:-7.3,  lon:72.4,   nation:'usa' },
+  { name:'Andersen AFB (USA/Guam)',     lat:13.6,  lon:144.9,  nation:'usa' },
+  { name:'Kadena AB (USA/Japan)',       lat:26.4,  lon:127.8,  nation:'usa' },
+  { name:'Osan AB (USA/South Korea)',   lat:37.1,  lon:127.0,  nation:'usa' },
+  { name:'Camp Humphreys (USA)',        lat:36.9,  lon:127.0,  nation:'usa' },
+  { name:'Aviano AB (USA/Italy)',       lat:46.0,  lon:12.6,   nation:'nato' },
+  { name:'Joint Base Pearl Harbor (USA)',lat:21.4, lon:-157.9, nation:'usa' },
+  { name:'Bagram Airfield (former USA)',lat:34.9,  lon:69.3,   nation:'usa' },
+  { name:'Stuttgart HQ (USA/EUCOM)',    lat:48.8,  lon:9.2,    nation:'usa' },
+  /* Russia — Red */
+  { name:'Khmeimim AB (Russia/Syria)',  lat:35.4,  lon:35.9,   nation:'russia' },
+  { name:'Tartus Naval Base (Russia)',  lat:34.9,  lon:35.9,   nation:'russia' },
+  { name:'Sevastopol Naval (Russia)',   lat:44.6,  lon:33.5,   nation:'russia' },
+  { name:'Eastern Military District',  lat:43.1,  lon:131.9,  nation:'russia' },
+  { name:'Kaliningrad (Russia/Baltic)', lat:54.7,  lon:20.5,   nation:'russia' },
+  { name:'Murmansk Northern Fleet',     lat:68.9,  lon:33.1,   nation:'russia' },
+  /* China — Yellow */
+  { name:'Sanya Naval Base (PLAN)',     lat:18.2,  lon:109.5,  nation:'china' },
+  { name:'Djibouti Base (PLA)',         lat:11.5,  lon:43.2,   nation:'china' },
+  { name:'Zhanjiang Naval (PLAN)',      lat:21.2,  lon:110.4,  nation:'china' },
+  { name:'Fiery Cross Reef (PLAN)',     lat:9.5,   lon:112.9,  nation:'china' },
+  { name:'Ream Naval Base (Cambodia)',  lat:10.5,  lon:103.6,  nation:'china' },
+  /* Iran — Orange */
+  { name:'Bandar Abbas Naval (IRGCN)',  lat:27.2,  lon:56.3,   nation:'iran' },
+  { name:'Chabahar Naval (Iran)',       lat:25.3,  lon:60.6,   nation:'iran' },
+  { name:'Kharg Island (Iran)',         lat:29.2,  lon:50.3,   nation:'iran' }
+];
+
+var BASE_COLORS = { usa:'#4488ff', nato:'#00aaff', russia:'#ff3333', china:'#ffdd00', iran:'#ff8800' };
+
+/* Tension Heatmap — country ISO numeric IDs to tension level */
+/* Levels: 4=active war, 3=high, 2=elevated, 1=watch */
+var TENSION_MAP = {
+  804:4, /* Ukraine */
+  275:4, /* Palestine/Gaza */
+  729:4, /* Sudan */
+  887:4, /* Yemen */
+  760:3, /* Syria */
+  364:3, /* Iran */
+  566:3, /* Nigeria (Sahel) */
+  706:3, /* Somalia */
+  104:3, /* Myanmar */
+  231:3, /* Ethiopia */
+  408:3, /* North Korea */
+  643:3, /* Russia */
+  156:2, /* China */
+  422:2, /* Lebanon */
+  586:2, /* Pakistan */
+  760:2, /* Syria */
+  368:2, /* Iraq */
+  400:2, /* Jordan */
+  288:2, /* Ghana */
+  466:2, /* Mali */
+  562:2, /* Niger */
+  854:2, /* Burkina Faso */
+  140:2, /* CAR */
+  384:1, /* Ivory Coast */
+  646:1, /* Rwanda */
+  800:1, /* Uganda */
+  548:1, /* Vanuatu */
+  764:1, /* Thailand */
+  116:1  /* Cambodia */
+};
+
+var TENSION_COLORS = {
+  4: 'rgba(255,20,20,0.45)',
+  3: 'rgba(255,100,0,0.35)',
+  2: 'rgba(255,200,0,0.22)',
+  1: 'rgba(255,255,0,0.12)'
+};
+
+/* ─────────────────────────────────────────────────────────────
+   GLOBE DRAW — new layers rendering (called inside globeDraw)
 ───────────────────────────────────────────────────────────── */
 var globeReady   = false;
 var globeCanvas, globeCtx;
@@ -1187,12 +1293,13 @@ var globeCountries, globeD3OK = false;
 var pulseT = 0;
 setInterval(function(){ pulseT++; }, 80);
 
-var globeLayers = { equities:true, forex:false, events:false, conflicts:false };
+var globeLayers = { equities:true, forex:false, events:false, conflicts:false, chokepoints:true, bases:false, tension:false };
 
 var EVENT_COLORS = {
   earthquake:'#ff8c00', volcano:'#ff00ff', cyclone:'#cc44ff',
   flood:'#0088ff',      wildfire:'#ff6600', conflict:'#ff0000',
-  epidemic:'#00ff44',   drought:'#ffcc00'
+  epidemic:'#00ff44',   drought:'#ffcc00',
+  chokepoint:'#00ffff', military:'#4488ff'
 };
 
 /* Exchange dots */
@@ -1434,6 +1541,17 @@ function globeDraw() {
     });
   }
 
+  /* Tension heatmap — shade countries before labels */
+  if (globeLayers.tension && globeCountries) {
+    globeCountries.features.forEach(function(f) {
+      var level = TENSION_MAP[parseInt(f.id)];
+      if (!level) return;
+      ctx.beginPath(); path(f);
+      ctx.fillStyle = TENSION_COLORS[level];
+      ctx.fill();
+    });
+  }
+
   /* Globe outline */
   ctx.beginPath(); path({type:'Sphere'});
   ctx.strokeStyle = '#00d4ff44';
@@ -1495,19 +1613,85 @@ function globeDraw() {
     });
   }
 
-  /* Exchange labels */
-  if (globeLayers.equities) {
-    updateExchangeLabels(proj);
-  } else {
-    document.getElementById('exchangeLabels').innerHTML = '';
+  /* Chokepoints */
+  if (globeLayers.chokepoints) {
+    CHOKEPOINTS.forEach(function(cp) {
+      var vis = d3.geoDistance([cp.lon,cp.lat],[-globeRot[0],-globeRot[1]]) < Math.PI/2;
+      if (!vis) return;
+      var v = proj([cp.lon, cp.lat]);
+      if (!v) return;
+      var color = CHOKEPOINT_COLORS[cp.status] || '#ffffff';
+      var pulse = 1 + (cp.status==='Red'||cp.status==='Orange' ? 0.4*Math.sin(pulseT*0.5) : 0.1);
+      /* Outer glow ring */
+      ctx.beginPath();
+      ctx.arc(v[0], v[1], 10*pulse, 0, Math.PI*2);
+      ctx.strokeStyle = color + '55';
+      ctx.lineWidth   = 1.5;
+      ctx.stroke();
+      /* Inner dot */
+      ctx.beginPath();
+      ctx.arc(v[0], v[1], 5, 0, Math.PI*2);
+      ctx.fillStyle = color + 'ee';
+      ctx.fill();
+      /* Anchor symbol */
+      ctx.font = '10px sans-serif';
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      /* Label */
+      ctx.font = 'bold 8px Rajdhani,sans-serif';
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.fillText(cp.name.split('/')[0].trim(), v[0], v[1]-14);
+    });
   }
 
-  /* Forex labels — HTML cards like equities */
-  if (globeLayers.forex) {
-    updateForexLabels(proj);
+  /* Military Bases */
+  if (globeLayers.bases) {
+    MILITARY_BASES.forEach(function(b) {
+      var vis = d3.geoDistance([b.lon,b.lat],[-globeRot[0],-globeRot[1]]) < Math.PI/2;
+      if (!vis) return;
+      var v = proj([b.lon, b.lat]);
+      if (!v) return;
+      var color = BASE_COLORS[b.nation] || '#ffffff';
+      /* Diamond shape */
+      ctx.save();
+      ctx.translate(v[0], v[1]);
+      ctx.rotate(Math.PI/4);
+      ctx.fillStyle = color + 'cc';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.fillRect(-4,-4,8,8);
+      ctx.strokeRect(-4,-4,8,8);
+      ctx.restore();
+      /* Label on hover zoom */
+      if (globeZoom >= 2) {
+        ctx.font = '7px Rajdhani,sans-serif';
+        ctx.fillStyle = color + 'cc';
+        ctx.textAlign = 'center';
+        ctx.fillText(b.name.split('(')[0].trim(), v[0], v[1]-10);
+      }
+    });
+  }
+
+  /* Exchange labels */
+  if (globeLayers.equities || globeLayers.forex) {
+    var sharedPlaced = []; // shared across both label types to prevent cross-overlap
+    if (globeLayers.equities) {
+      updateExchangeLabels(proj, sharedPlaced);
+    } else {
+      document.getElementById('exchangeLabels').innerHTML = '';
+    }
+    if (globeLayers.forex) {
+      updateForexLabels(proj, sharedPlaced);
+    } else {
+      var fxContainer = document.getElementById('forexLabels');
+      if (fxContainer) fxContainer.innerHTML = '';
+    }
   } else {
-    var fxContainer = document.getElementById('forexLabels');
-    if (fxContainer) fxContainer.innerHTML = '';
+    document.getElementById('exchangeLabels').innerHTML = '';
+    var fxC = document.getElementById('forexLabels');
+    if (fxC) fxC.innerHTML = '';
   }
 
   requestAnimationFrame(globeDraw);
@@ -1526,11 +1710,10 @@ document.addEventListener('visibilitychange', function() {
 });
 
 /* Exchange labels — card design with collision detection */
-function updateExchangeLabels(proj) {
+function updateExchangeLabels(proj, placed) {
   var d3 = window._d3;
   var container = document.getElementById('exchangeLabels');
   var html = '';
-  var placed = []; // track placed label positions for collision detection
 
   EXCHANGES.forEach(function(e) {
     var dist = d3.geoDistance([e.lon, e.lat], [-globeRot[0], -globeRot[1]]);
@@ -1545,7 +1728,7 @@ function updateExchangeLabels(proj) {
     // Collision detection — skip if too close to already placed label
     var tooClose = placed.some(function(p) {
       var dx = p[0] - v[0], dy = p[1] - v[1];
-      return Math.sqrt(dx*dx + dy*dy) < 72;
+      return Math.sqrt(dx*dx + dy*dy) < 90;
     });
     if (tooClose) return;
     placed.push(v);
@@ -1570,11 +1753,10 @@ function updateExchangeLabels(proj) {
 }
 
 /* Forex labels — amber card design with collision detection */
-function updateForexLabels(proj) {
+function updateForexLabels(proj, placed) {
   var d3 = window._d3;
   var container = document.getElementById('forexLabels');
   var html = '';
-  var placed = [];
 
   FOREX_DOTS.forEach(function(f) {
     var dist = d3.geoDistance([f.lon, f.lat], [-globeRot[0], -globeRot[1]]);
@@ -1587,7 +1769,7 @@ function updateForexLabels(proj) {
 
     var tooClose = placed.some(function(p) {
       var dx = p[0] - v[0], dy = p[1] - v[1];
-      return Math.sqrt(dx*dx + dy*dy) < 72;
+      return Math.sqrt(dx*dx + dy*dy) < 90;
     });
     if (tooClose) return;
     placed.push(v);
@@ -1614,7 +1796,15 @@ function updateForexLabels(proj) {
 function toggleLayer(name) {
   globeLayers[name] = !globeLayers[name];
   var btn = document.getElementById('tog-' + name);
-  var labels = {equities:'&#128200; EQUITIES', forex:'&#128177; FOREX', events:'&#9888; DISASTERS', conflicts:'&#9876; CONFLICTS'};
+  var labels = {
+    equities:'&#128200; EQUITIES',
+    forex:'&#128177; FOREX',
+    events:'&#9888; DISASTERS',
+    conflicts:'&#9876; CONFLICTS',
+    chokepoints:'&#9875; CHOKEPOINTS',
+    bases:'&#129686; MIL BASES',
+    tension:'&#127777; TENSION'
+  };
   btn.classList.toggle('on', globeLayers[name]);
   btn.innerHTML = labels[name] + (globeLayers[name] ? ' ON' : ' OFF');
 }
@@ -1631,8 +1821,10 @@ function handleGlobeClick(e) {
   var proj = d3.geoOrthographic().scale(R).translate([W/2,H/2]).rotate(globeRot).clipAngle(90);
 
   var allEvts = [];
-  if (globeLayers.conflicts) CONFLICTS.forEach(function(e){ allEvts.push(e); });
-  if (globeLayers.events)    globalEvents.forEach(function(e){ allEvts.push(e); });
+  if (globeLayers.conflicts)   CONFLICTS.forEach(function(e){ allEvts.push(e); });
+  if (globeLayers.events)      globalEvents.forEach(function(e){ allEvts.push(e); });
+  if (globeLayers.chokepoints) CHOKEPOINTS.forEach(function(e){ allEvts.push({name:e.name, type:'chokepoint', lat:e.lat, lon:e.lon, severity:e.status, source:'Maritime Intel', note:e.note}); });
+  if (globeLayers.bases)       MILITARY_BASES.forEach(function(b){ allEvts.push({name:b.name, type:'military', lat:b.lat, lon:b.lon, severity:'Green', source:'Open Source Defense', note:b.nation.toUpperCase()+' facility'}); });
 
   var hit = null, minDist = 20;
   allEvts.forEach(function(ev) {
@@ -1752,7 +1944,137 @@ function initGlobe() {
   document.head.appendChild(d3s);
 }
 
-/* Start globe after layout renders */
+/* ─────────────────────────────────────────────────────────────
+   CORRELATION ALERTS
+   Monitors price relationships, fires when thresholds crossed
+───────────────────────────────────────────────────────────── */
+var correlationAlerts = [];
+var lastAlertTime = 0;
+
+var CORRELATIONS = [
+  { name:'Oil → CAD',         check: function(p){ return Math.abs(p.oil) > 1.5 && Math.sign(p.oil) !== Math.sign(p.cadusd); }, msg: function(p){ return 'WTI Oil ' + fmtChg(p.oil) + ' → CAD/USD typically follows'; } },
+  { name:'DXY → Gold Inverse',check: function(p){ return Math.abs(p.dxy) > 0.8 && Math.sign(p.dxy) !== Math.sign(p.gold); }, msg: function(p){ return 'DXY ' + fmtChg(p.dxy) + ' with Gold ' + fmtChg(p.gold) + ' — inverse correlation active'; } },
+  { name:'VIX → SPY Inverse', check: function(p){ return Math.abs(p.vix) > 3 && Math.sign(p.vix) !== Math.sign(p.spy);  }, msg: function(p){ return 'VIX ' + fmtChg(p.vix) + ' with SPY ' + fmtChg(p.spy) + ' — fear spike detected'; } },
+  { name:'AUD → Copper',      check: function(p){ return Math.abs(p.copper) > 1.2 && Math.sign(p.copper) === Math.sign(p.audusd); }, msg: function(p){ return 'Copper ' + fmtChg(p.copper) + ' with AUD/USD ' + fmtChg(p.audusd) + ' — commodity correlation'; } }
+];
+
+function fmtChg(v) { return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
+
+function getPriceChanges() {
+  /* Pull simulated price changes from exPrices/fxPrices as proxies */
+  return {
+    oil:    parseFloat(exPrices['b3']   ? exPrices['b3'].chg   : 0),
+    gold:   parseFloat(exPrices['jse']  ? exPrices['jse'].chg  : 0),
+    spy:    parseFloat(exPrices['nyse'] ? exPrices['nyse'].chg : 0),
+    dxy:    parseFloat(fxPrices['fx-sgd']? fxPrices['fx-sgd'].chg : 0),
+    vix:    parseFloat(exPrices['nasdaq']? exPrices['nasdaq'].chg : 0),
+    cadusd: parseFloat(fxPrices['fx-cad']? fxPrices['fx-cad'].chg : 0),
+    audusd: parseFloat(fxPrices['fx-aud']? fxPrices['fx-aud'].chg : 0),
+    copper: parseFloat(exPrices['krx']  ? exPrices['krx'].chg  : 0)
+  };
+}
+
+function checkCorrelations() {
+  var now = Date.now();
+  if (now - lastAlertTime < 30000) return; /* max one alert per 30s */
+  var p = getPriceChanges();
+  for (var i = 0; i < CORRELATIONS.length; i++) {
+    var c = CORRELATIONS[i];
+    if (c.check(p)) {
+      showAlert('correlation', '&#9889; CORRELATION: ' + c.name, c.msg(p));
+      lastAlertTime = now;
+      return;
+    }
+  }
+}
+
+setInterval(checkCorrelations, 60000);
+
+/* ─────────────────────────────────────────────────────────────
+   MACRO CONFIRMATION STACK
+   Fires when 3+ signals align simultaneously
+───────────────────────────────────────────────────────────── */
+var macroLastFire = 0;
+
+function checkMacroStack() {
+  var now = Date.now();
+  if (now - macroLastFire < 120000) return; /* max once per 2 mins */
+
+  var p = getPriceChanges();
+  var signals = [];
+  var riskOff = 0, riskOn = 0;
+
+  /* Gold up = risk off */
+  if (p.gold > 1.0)  { signals.push('Gold +' + p.gold.toFixed(1) + '%'); riskOff++; }
+  /* Oil up = inflation/geopolitical */
+  if (p.oil > 1.5)   { signals.push('Oil +' + p.oil.toFixed(1) + '%'); riskOff++; }
+  /* SPY down = risk off */
+  if (p.spy < -1.0)  { signals.push('SPY ' + p.spy.toFixed(1) + '%'); riskOff++; }
+  /* DXY up = risk off / dollar flight */
+  if (p.dxy > 0.5)   { signals.push('DXY +' + p.dxy.toFixed(1) + '%'); riskOff++; }
+  /* VIX spike = fear */
+  if (p.vix > 5)     { signals.push('VIX +' + p.vix.toFixed(1) + '%'); riskOff++; }
+  /* JPY/CHF strengthening = safe haven */
+  if (p.cadusd < -0.5){ signals.push('CAD flight'); riskOff++; }
+  /* GDACS Red alert */
+  if (globalEvents.some(function(e){ return e.severity==='Red'; })) {
+    signals.push('GDACS Red Alert'); riskOff++;
+  }
+  /* Significant earthquake */
+  if (globalEvents.some(function(e){ return e.type==='earthquake' && e.severity==='Red'; })) {
+    signals.push('M7.5+ Earthquake'); riskOff++;
+  }
+
+  /* Risk-on signals */
+  if (p.spy > 1.0)   { signals.push('SPY +' + p.spy.toFixed(1) + '%'); riskOn++; }
+  if (p.gold < -0.8) { signals.push('Gold ' + p.gold.toFixed(1) + '%'); riskOn++; }
+  if (p.copper > 1.2){ signals.push('Copper +' + p.copper.toFixed(1) + '%'); riskOn++; }
+
+  var totalSignals = Math.max(riskOff, riskOn);
+  if (totalSignals >= 3) {
+    var regime = riskOff > riskOn ? 'RISK-OFF' : 'RISK-ON';
+    var color  = riskOff > riskOn ? '#ff8800' : '#00ff88';
+    showAlert('macro',
+      '&#128293; MACRO STACK — ' + totalSignals + '/8 SIGNALS ALIGNED — ' + regime,
+      signals.join(' &middot; '),
+      color
+    );
+    macroLastFire = now;
+  }
+}
+
+setInterval(checkMacroStack, 90000);
+
+/* ─────────────────────────────────────────────────────────────
+   ALERT BANNER DISPLAY
+───────────────────────────────────────────────────────────── */
+var alertDismissTimer = null;
+
+function showAlert(type, title, body, color) {
+  color = color || (type === 'macro' ? '#ff8800' : '#00d4ff');
+  var banner = document.getElementById('alert-banner');
+  banner.style.display = 'block';
+  banner.innerHTML =
+    '<div style="background:rgba(0,9,19,0.96);border:1px solid ' + color + ';border-left:3px solid ' + color + ';' +
+    'padding:6px 12px;display:flex;align-items:center;justify-content:space-between;gap:16px;">' +
+      '<div style="display:flex;align-items:center;gap:12px;flex:1;">' +
+        '<span style="font-size:9px;font-weight:700;color:' + color + ';letter-spacing:2px;white-space:nowrap;">' + title + '</span>' +
+        '<span style="font-size:9px;color:#a8e8f8;letter-spacing:1px;">' + body + '</span>' +
+      '</div>' +
+      '<button onclick="dismissAlert()" style="background:none;border:none;color:#4a7a8a;cursor:pointer;font-size:14px;flex-shrink:0;">&#10005;</button>' +
+    '</div>';
+
+  /* Auto-dismiss after 60 seconds */
+  if (alertDismissTimer) clearTimeout(alertDismissTimer);
+  alertDismissTimer = setTimeout(dismissAlert, 60000);
+}
+
+function dismissAlert() {
+  var banner = document.getElementById('alert-banner');
+  banner.style.display = 'none';
+  banner.innerHTML = '';
+}
+
 window.addEventListener('load', function(){
   setTimeout(initGlobe, 300);
 });
