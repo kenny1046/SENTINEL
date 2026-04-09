@@ -774,6 +774,15 @@ html, body {
         </div>
       </div>
 
+      <!-- Macro Stack Status -->
+      <div class="panel" style="flex-shrink:0;height:52px;">
+        <div class="panel-inner" style="padding:5px 8px;flex-direction:row;align-items:center;gap:8px;">
+          <span style="font-size:8px;letter-spacing:2px;color:#00d4ff55;white-space:nowrap;">&#128293; MACRO</span>
+          <div id="macro-signals" style="flex:1;display:flex;flex-wrap:wrap;gap:3px;overflow:hidden;"></div>
+          <button onclick="testMacroStack()" style="background:rgba(0,212,255,0.08);border:1px solid #00d4ff33;color:#4a7a8a;font-family:Rajdhani,sans-serif;font-size:7px;letter-spacing:1px;padding:2px 6px;cursor:pointer;white-space:nowrap;">TEST</button>
+        </div>
+      </div>
+
       <!-- OSINT Links -->
       <div class="panel" id="osint-panel" style="flex-shrink:0;height:115px;">
         <div class="panel-inner" style="padding:6px 8px;">
@@ -1045,6 +1054,33 @@ var TG_CHANNELS = [
 var tgPosts = [];
 var tgIdx   = 0;
 
+var TG_PROXIES = [
+  function(url){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url); },
+  function(url){ return 'https://corsproxy.io/?' + encodeURIComponent(url); },
+  function(url){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url); }
+];
+
+function fetchWithFallback(url, proxies, cb) {
+  var idx = 0;
+  function tryNext() {
+    if (idx >= proxies.length) { cb(null); return; }
+    var proxyUrl = proxies[idx++](url);
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', proxyUrl, true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      if (xhr.status === 200 && xhr.responseText.length > 200) {
+        cb(xhr.responseText);
+      } else {
+        tryNext();
+      }
+    };
+    xhr.onerror = xhr.ontimeout = tryNext;
+    xhr.send();
+  }
+  tryNext();
+}
+
 function tgAge(date) {
   if (!date || isNaN(date.getTime())) return '';
   var m = Math.floor((Date.now() - date.getTime()) / 60000);
@@ -1099,13 +1135,10 @@ function tgRender() {
 
 function tgFetchOne(silent) {
   if (tgIdx >= TG_CHANNELS.length) { tgRender(); return; }
-  var ch  = TG_CHANNELS[tgIdx];
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ch.url), true);
-  xhr.timeout = 20000;
-  xhr.onload = function() {
-    if (xhr.status === 200 && xhr.responseText.length > 500) {
-      var fresh = tgParse(xhr.responseText, ch.name, ch.color);
+  var ch = TG_CHANNELS[tgIdx];
+  fetchWithFallback(ch.url, TG_PROXIES, function(text) {
+    if (text) {
+      var fresh = tgParse(text, ch.name, ch.color);
       if (silent) {
         var seen = {};
         tgPosts.forEach(function(p){ seen[p.text] = true; });
@@ -1116,10 +1149,8 @@ function tgFetchOne(silent) {
       }
     }
     tgIdx++;
-    setTimeout(function(){ tgFetchOne(silent); }, 2000);
-  };
-  xhr.onerror = xhr.ontimeout = function() { tgIdx++; setTimeout(function(){ tgFetchOne(silent); }, 2000); };
-  xhr.send();
+    setTimeout(function(){ tgFetchOne(silent); }, 1500);
+  });
 }
 
 function loadFeeds(silent) {
@@ -1757,6 +1788,9 @@ function updateForexLabels(proj, placed) {
   var d3 = window._d3;
   var container = document.getElementById('forexLabels');
   var html = '';
+  // Forex uses its OWN placed array — doesn't block equities
+  // Instead, forex labels are offset 55px to the right of their coordinate
+  var fxPlaced = [];
 
   FOREX_DOTS.forEach(function(f) {
     var dist = d3.geoDistance([f.lon, f.lat], [-globeRot[0], -globeRot[1]]);
@@ -1767,19 +1801,29 @@ function updateForexLabels(proj, placed) {
     var v = proj([f.lon, f.lat]);
     if (!v) return;
 
-    var tooClose = placed.some(function(p) {
-      var dx = p[0] - v[0], dy = p[1] - v[1];
-      return Math.sqrt(dx*dx + dy*dy) < 90;
+    // Offset forex label to the right so it sits beside any equity label at same location
+    var ox = v[0] + 55;
+    var oy = v[1];
+
+    // Only check against other forex labels (not equities)
+    var tooClose = fxPlaced.some(function(p) {
+      var dx = p[0] - ox, dy = p[1] - oy;
+      return Math.sqrt(dx*dx + dy*dy) < 88;
     });
     if (tooClose) return;
-    placed.push(v);
+    fxPlaced.push([ox, oy]);
 
     var p    = fxPrices[f.id];
     var chg  = parseFloat(p.chg);
     var chgColor = chg >= 0 ? '#00ff88' : '#ff4455';
     var chgSign  = chg >= 0 ? '+' : '';
 
-    html += '<div class="ex-label" style="left:' + v[0] + 'px;top:' + v[1] + 'px;opacity:' + opacity + ';">' +
+    // Draw a small connector line from coordinate to offset card
+    html += '<svg style="position:absolute;left:' + Math.min(v[0],ox) + 'px;top:' + (oy-60) + 'px;overflow:visible;pointer-events:none;opacity:' + opacity + ';" width="1" height="1">' +
+      '<line x1="' + (v[0]-Math.min(v[0],ox)) + '" y1="60" x2="' + (ox-Math.min(v[0],ox)) + '" y2="60" stroke="rgba(255,187,0,0.3)" stroke-width="1" stroke-dasharray="3,2"/>' +
+    '</svg>';
+
+    html += '<div class="ex-label" style="left:' + ox + 'px;top:' + oy + 'px;opacity:' + opacity + ';">' +
       '<div class="fx-card">' +
         '<span class="fx-name">' + f.label + '</span>' +
         '<span class="fx-price">' + p.price + '</span>' +
@@ -1845,7 +1889,7 @@ function showPopup(ev, x, y) {
   document.getElementById('popup-type').style.color   = color;
   document.querySelector('.popup-box').style.borderColor = color;
   document.getElementById('popup-name').textContent   = ev.name;
-  document.getElementById('popup-time').textContent   = ev.utcTime || '';
+  document.getElementById('popup-time').textContent   = ev.utcTime || ev.note || ';
   document.getElementById('popup-body').textContent   = 'Fetching briefing...';
   document.getElementById('popup-source').textContent = 'Source: ' + (ev.source || 'OSINT');
 
@@ -1854,6 +1898,9 @@ function showPopup(ev, x, y) {
   popup.style.left    = left + 'px';
   popup.style.top     = Math.max(10, y - 60) + 'px';
   popup.style.display = 'block';
+
+  // Show static info immediately for chokepoints and bases
+  if (ev.note) { document.getElementById('popup-body').textContent = ev.note; }
 
   /* Call Netlify summary function */
   fetch('https://gilded-syrniki-e7be1e.netlify.app/.netlify/functions/summary', {
@@ -1870,8 +1917,8 @@ function showPopup(ev, x, y) {
     document.getElementById('popup-body').textContent = text.trim() || 'No briefing available.';
     document.getElementById('popup-source').textContent = '&#128269; Live web search · ' + (ev.source||'') + (ev.utcTime ? ' · ' + ev.utcTime + ' UTC' : '');
   })
-  .catch(function(){
-    document.getElementById('popup-body').textContent = 'Briefing unavailable — upload to Netlify for live search.';
+    // Keep static info shown above if no API credits
+    document.getElementById('popup-body').textContent = 'Briefing unavailable. Add Anthropic API credits to Netlify for live summaries.';
   });
 }
 
@@ -1996,51 +2043,61 @@ setInterval(checkCorrelations, 60000);
 ───────────────────────────────────────────────────────────── */
 var macroLastFire = 0;
 
+function updateMacroStatus(signals, totalSignals, regime, color) {
+  var el = document.getElementById('macro-signals');
+  if (!el) return;
+  if (!signals.length) {
+    el.innerHTML = '<span style="font-size:8px;color:#4a7a8a;letter-spacing:1px;">No signals aligned</span>';
+    return;
+  }
+  el.innerHTML = signals.map(function(s) {
+    return '<span style="font-size:7px;padding:1px 4px;background:rgba(0,212,255,0.08);border:1px solid #00d4ff22;color:#a8e8f8;white-space:nowrap;">' + s + '</span>';
+  }).join('');
+}
+
 function checkMacroStack() {
   var now = Date.now();
-  if (now - macroLastFire < 120000) return; /* max once per 2 mins */
+  if (now - macroLastFire < 120000) return;
 
   var p = getPriceChanges();
   var signals = [];
   var riskOff = 0, riskOn = 0;
 
-  /* Gold up = risk off */
   if (p.gold > 1.0)  { signals.push('Gold +' + p.gold.toFixed(1) + '%'); riskOff++; }
-  /* Oil up = inflation/geopolitical */
   if (p.oil > 1.5)   { signals.push('Oil +' + p.oil.toFixed(1) + '%'); riskOff++; }
-  /* SPY down = risk off */
   if (p.spy < -1.0)  { signals.push('SPY ' + p.spy.toFixed(1) + '%'); riskOff++; }
-  /* DXY up = risk off / dollar flight */
   if (p.dxy > 0.5)   { signals.push('DXY +' + p.dxy.toFixed(1) + '%'); riskOff++; }
-  /* VIX spike = fear */
   if (p.vix > 5)     { signals.push('VIX +' + p.vix.toFixed(1) + '%'); riskOff++; }
-  /* JPY/CHF strengthening = safe haven */
-  if (p.cadusd < -0.5){ signals.push('CAD flight'); riskOff++; }
-  /* GDACS Red alert */
-  if (globalEvents.some(function(e){ return e.severity==='Red'; })) {
-    signals.push('GDACS Red Alert'); riskOff++;
-  }
-  /* Significant earthquake */
-  if (globalEvents.some(function(e){ return e.type==='earthquake' && e.severity==='Red'; })) {
-    signals.push('M7.5+ Earthquake'); riskOff++;
-  }
-
-  /* Risk-on signals */
+  if (p.cadusd < -0.5){ signals.push('CAD safe haven'); riskOff++; }
+  if (globalEvents.some(function(e){ return e.severity==='Red'; })) { signals.push('GDACS Red'); riskOff++; }
+  if (globalEvents.some(function(e){ return e.type==='earthquake' && e.severity==='Red'; })) { signals.push('M7.5+ EQ'); riskOff++; }
   if (p.spy > 1.0)   { signals.push('SPY +' + p.spy.toFixed(1) + '%'); riskOn++; }
   if (p.gold < -0.8) { signals.push('Gold ' + p.gold.toFixed(1) + '%'); riskOn++; }
   if (p.copper > 1.2){ signals.push('Copper +' + p.copper.toFixed(1) + '%'); riskOn++; }
 
   var totalSignals = Math.max(riskOff, riskOn);
+  updateMacroStatus(signals, totalSignals, riskOff > riskOn ? 'RISK-OFF' : 'RISK-ON');
+
   if (totalSignals >= 3) {
     var regime = riskOff > riskOn ? 'RISK-OFF' : 'RISK-ON';
     var color  = riskOff > riskOn ? '#ff8800' : '#00ff88';
     showAlert('macro',
-      '&#128293; MACRO STACK — ' + totalSignals + '/8 SIGNALS ALIGNED — ' + regime,
+      '&#128293; MACRO STACK — ' + totalSignals + '/8 SIGNALS — ' + regime,
       signals.join(' &middot; '),
       color
     );
     macroLastFire = now;
   }
+}
+
+function testMacroStack() {
+  /* Force a test alert so you can see it working */
+  showAlert('macro',
+    '&#128293; MACRO STACK TEST — 5/8 SIGNALS — RISK-OFF',
+    'Gold +2.1% &middot; Oil +1.8% &middot; SPY -1.3% &middot; DXY +0.7% &middot; GDACS Red',
+    '#ff8800'
+  );
+  updateMacroStatus(['Gold +2.1%','Oil +1.8%','SPY -1.3%','DXY +0.7%','GDACS Red'], 5, 'RISK-OFF');
 }
 
 setInterval(checkMacroStack, 90000);
@@ -2077,6 +2134,7 @@ function dismissAlert() {
 
 window.addEventListener('load', function(){
   setTimeout(initGlobe, 300);
+  setTimeout(checkMacroStack, 5000);
 });
 </script>
 </body>
