@@ -1980,7 +1980,7 @@ function showPopup(ev, x, y) {
   document.getElementById('popup-type').style.color   = color;
   document.querySelector('.popup-box').style.borderColor = color;
   document.getElementById('popup-name').textContent   = ev.name;
-  document.getElementById('popup-time').textContent   = ev.utcTime || ev.note || ';
+  document.getElementById('popup-time').textContent   = ev.utcTime || ev.note || '';
   document.getElementById('popup-body').textContent   = 'Fetching briefing...';
   document.getElementById('popup-source').textContent = 'Source: ' + (ev.source || 'OSINT');
 
