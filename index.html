@@ -170,9 +170,12 @@
     </div>
   </div>
 
+  <!-- PAGES WRAPPER — single flex child for the dash grid -->
+  <div style="flex:1;min-height:0;position:relative;">
+
   <!-- PAGE: LIVE -->
-  <div id="page-live" class="page-content">
-  <div class="main-layout">
+  <div id="page-live" class="page-content" style="position:absolute;inset:0;display:flex;flex-direction:column;">
+  <div class="main-layout" style="flex:1;min-height:0;">
 
     <!-- LEFT: MARKET DATA -->
     <div class="side-panel">
@@ -415,8 +418,8 @@
   </div><!-- end page-live -->
 
   <!-- PAGE: RECON -->
-  <div id="page-recon" class="page-content" style="display:none;">
-  <div class="main-layout">
+  <div id="page-recon" class="page-content" style="position:absolute;inset:0;display:none;flex-direction:column;">
+  <div class="main-layout" style="flex:1;min-height:0;">
 
     <!-- LEFT — placeholder for future sentiment/fear&greed/yield curve -->
     <div class="side-panel">
@@ -534,6 +537,10 @@
   </div>
   </div><!-- end page-recon -->
 
+  </div><!-- end pages wrapper -->
+
+</div><!-- end dash -->
+
 <script>
 function tick(){
   var now=new Date(),h=String(now.getUTCHours()).padStart(2,'0'),m=String(now.getUTCMinutes()).padStart(2,'0'),s=String(now.getUTCSeconds()).padStart(2,'0');
@@ -559,7 +566,7 @@ function switchPage(page) {
   setTimeout(function() {
     fromEl.style.display = 'none';
     fromEl.classList.remove('fading');
-    toEl.style.display = 'block';
+    toEl.style.display = 'flex';
     toEl.classList.add('fading');
     setTimeout(function() { toEl.classList.remove('fading'); }, 20);
 
