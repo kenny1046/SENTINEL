@@ -126,12 +126,14 @@
       <button id="nav-recon" onclick="switchPage('recon')" style="background:transparent;border:1px solid rgba(0,212,255,0.25);color:#4a7a8a;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;padding:5px 16px;cursor:pointer;transition:all 0.2s;">○ RECON</button>
     </div>
 
-    <div style="display:flex;gap:16px;align-items:center;">
-      <div class="topbar-center" style="gap:12px;">
-        <span><span class="live-dot red"></span>Nominal</span>
-        <span class="sep">|</span>
-        <span><span class="live-dot green"></span>Live</span>
-      </div>
+    <div class="topbar-center">
+      <span><span class="live-dot red"></span>Nominal</span>
+      <span class="sep">|</span>
+      <span><span class="live-dot green"></span>Live Feeds Active</span>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;">
+      <button id="nav-live" onclick="switchPage('live')" style="background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.7);color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;padding:4px 14px;cursor:pointer;">● LIVE</button>
+      <button id="nav-recon" onclick="switchPage('recon')" style="background:transparent;border:1px solid rgba(0,212,255,0.25);color:#4a7a8a;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;padding:4px 14px;cursor:pointer;">○ RECON</button>
       <span id="date-display" style="font-size:10px;color:#4a7a8a;letter-spacing:2px;"></span>
       <span class="clock" id="clk">--:--:-- UTC</span>
     </div>
@@ -168,14 +170,13 @@
       ],"showSymbolLogo":false,"colorTheme":"dark","isTransparent":true,"displayMode":"adaptive","locale":"en"}
       </script>
     </div>
-  </div>
 
-  <!-- PAGES WRAPPER — single flex child for the dash grid -->
-  <div style="flex:1;min-height:0;position:relative;">
+  <!-- PAGES WRAPPER -->
+  <div style="flex:1;min-height:0;position:relative;overflow:hidden;">
 
-  <!-- PAGE: LIVE -->
-  <div id="page-live" class="page-content" style="position:absolute;inset:0;display:flex;flex-direction:column;">
-  <div class="main-layout" style="flex:1;min-height:0;">
+    <!-- PAGE: LIVE -->
+    <div id="page-live" style="position:absolute;inset:0;">
+<div class="main-layout" style="flex:1;min-height:0;">
 
     <!-- LEFT: MARKET DATA -->
     <div class="side-panel">
@@ -415,13 +416,12 @@
     </div>
 
   </div><!-- end right side-panel -->
-  </div><!-- extra close -->
   </div><!-- end main-layout -->
-  </div><!-- end page-live -->
+    </div>
 
-  <!-- PAGE: RECON -->
-  <div id="page-recon" class="page-content" style="position:absolute;inset:0;display:none;flex-direction:column;">
-  <div class="main-layout" style="flex:1;min-height:0;">
+    <!-- PAGE: RECON -->
+    <div id="page-recon" style="position:absolute;inset:0;display:none;">
+<div class="main-layout" style="flex:1;min-height:0;">
 
     <!-- LEFT — placeholder for future sentiment/fear&greed/yield curve -->
     <div class="side-panel">
@@ -441,19 +441,19 @@
     </div>
 
     <!-- CENTER — 2x2 Chart Grid -->
-    <div class="map-container" style="display:flex;flex-direction:column;gap:6px;padding:6px;">
+    <div class="map-container" style="padding:6px;overflow:hidden;">
 
-      <div style="font-size:8px;letter-spacing:3px;color:#00d4ff66;padding:0 2px 4px;border-bottom:1px solid #00d4ff22;flex-shrink:0;">
-        📊 CHARTS // Click symbol to change · Select timeframe below each chart
+      <div style="font-size:8px;letter-spacing:3px;color:#00d4ff66;padding:0 2px 6px;border-bottom:1px solid #00d4ff22;flex-shrink:0;">
+        📊 CHARTS // Type any symbol · Select timeframe
       </div>
 
       <!-- Top row -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;min-height:0;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;min-height:0;margin-top:6px;">
 
         <!-- Chart 1 -->
         <div style="background:#000d1a;border:1px solid #00d4ff22;display:flex;flex-direction:column;min-height:0;">
-          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;">
-            <input id="chart1-sym" value="AMEX:SPY" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:100px;" onchange="reloadChart(1)"/>
+          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;background:#000913;">
+            <input id="chart1-sym" value="AMEX:SPY" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:110px;" onchange="reloadChart(1)"/>
             <div style="display:flex;gap:3px;margin-left:auto;">
               <button onclick="setTF(1,'1')" class="tf-btn" data-chart="1">1m</button>
               <button onclick="setTF(1,'5')" class="tf-btn" data-chart="1">5m</button>
@@ -467,8 +467,8 @@
 
         <!-- Chart 2 -->
         <div style="background:#000d1a;border:1px solid #00d4ff22;display:flex;flex-direction:column;min-height:0;">
-          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;">
-            <input id="chart2-sym" value="TVC:GOLD" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:100px;" onchange="reloadChart(2)"/>
+          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;background:#000913;">
+            <input id="chart2-sym" value="TVC:GOLD" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:110px;" onchange="reloadChart(2)"/>
             <div style="display:flex;gap:3px;margin-left:auto;">
               <button onclick="setTF(2,'1')" class="tf-btn" data-chart="2">1m</button>
               <button onclick="setTF(2,'5')" class="tf-btn" data-chart="2">5m</button>
@@ -483,12 +483,12 @@
       </div>
 
       <!-- Bottom row -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;min-height:0;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;min-height:0;margin-top:6px;">
 
         <!-- Chart 3 -->
         <div style="background:#000d1a;border:1px solid #00d4ff22;display:flex;flex-direction:column;min-height:0;">
-          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;">
-            <input id="chart3-sym" value="BINANCE:BTCUSDT" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:100px;" onchange="reloadChart(3)"/>
+          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;background:#000913;">
+            <input id="chart3-sym" value="BINANCE:BTCUSDT" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:110px;" onchange="reloadChart(3)"/>
             <div style="display:flex;gap:3px;margin-left:auto;">
               <button onclick="setTF(3,'1')" class="tf-btn" data-chart="3">1m</button>
               <button onclick="setTF(3,'5')" class="tf-btn" data-chart="3">5m</button>
@@ -502,8 +502,8 @@
 
         <!-- Chart 4 -->
         <div style="background:#000d1a;border:1px solid #00d4ff22;display:flex;flex-direction:column;min-height:0;">
-          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;">
-            <input id="chart4-sym" value="FX:EURUSD" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:100px;" onchange="reloadChart(4)"/>
+          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #00d4ff11;flex-shrink:0;background:#000913;">
+            <input id="chart4-sym" value="FX:EURUSD" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;padding:2px 6px;width:110px;" onchange="reloadChart(4)"/>
             <div style="display:flex;gap:3px;margin-left:auto;">
               <button onclick="setTF(4,'1')" class="tf-btn" data-chart="4">1m</button>
               <button onclick="setTF(4,'5')" class="tf-btn" data-chart="4">5m</button>
@@ -538,7 +538,7 @@
 
   </div>
   </div><!-- end main-layout -->
-  </div><!-- end page-recon -->
+    </div>
 
   </div><!-- end pages wrapper -->
 
