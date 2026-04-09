@@ -236,20 +236,76 @@ html, body {
   display:block; cursor:grab;
 }
 /* Exchange / forex label overlays */
-#exchangeLabels {
+#exchangeLabels, #forexLabels {
   position:absolute; inset:0;
   pointer-events:none; overflow:hidden;
 }
 .ex-label {
   position:absolute;
-  transform:translate(-50%,-50%);
-  text-align:center; pointer-events:none;
+  transform:translate(-50%, -100%);
+  pointer-events:none;
+  margin-top:-8px;
 }
-.ex-name  { font-size:7px; letter-spacing:1px; color:#00d4ff88; text-transform:uppercase; white-space:nowrap; display:block; }
-.ex-price { font-size:9px; font-weight:600; color:#4df7ff; white-space:nowrap; display:block; }
-.ex-chg   { font-size:7px; white-space:nowrap; display:block; }
+.ex-card {
+  background:rgba(0,9,19,0.82);
+  border:1px solid rgba(0,212,255,0.35);
+  border-radius:2px;
+  padding:3px 6px;
+  white-space:nowrap;
+  backdrop-filter:blur(2px);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:1px;
+  min-width:64px;
+}
+.ex-dot {
+  width:5px; height:5px;
+  border-radius:50%;
+  background:#00d4ff;
+  box-shadow:0 0 6px #00d4ff;
+  position:absolute;
+  bottom:-8px; left:50%;
+  transform:translateX(-50%);
+}
+.ex-stem {
+  width:1px; height:6px;
+  background:rgba(0,212,255,0.4);
+  position:absolute;
+  bottom:-7px; left:50%;
+  transform:translateX(-50%);
+}
+.ex-name  { font-size:7px; letter-spacing:1.5px; color:#00d4ffaa; text-transform:uppercase; white-space:nowrap; }
+.ex-price { font-size:10px; font-weight:700; color:#ffffff; white-space:nowrap; font-family:'Exo 2',sans-serif; }
+.ex-chg   { font-size:8px; white-space:nowrap; font-weight:600; }
 .ex-chg.up   { color:#00ff88; }
-.ex-chg.down { color:#ff3d3d; }
+.ex-chg.down { color:#ff4455; }
+/* Forex card — amber variant */
+.fx-card {
+  background:rgba(12,8,0,0.82);
+  border:1px solid rgba(255,187,0,0.35);
+  border-radius:2px;
+  padding:3px 6px;
+  white-space:nowrap;
+  backdrop-filter:blur(2px);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:1px;
+  min-width:64px;
+}
+.fx-dot {
+  width:5px; height:5px;
+  border-radius:50%;
+  background:#ffbb00;
+  box-shadow:0 0 6px #ffbb00;
+  position:absolute;
+  bottom:-8px; left:50%;
+  transform:translateX(-50%);
+}
+.fx-name  { font-size:7px; letter-spacing:1.5px; color:#ffbb00aa; text-transform:uppercase; white-space:nowrap; }
+.fx-price { font-size:10px; font-weight:700; color:#ffdd88; white-space:nowrap; font-family:'Exo 2',sans-serif; }
+.fx-chg   { font-size:8px; white-space:nowrap; font-weight:600; }
 /* Globe toggles */
 #globe-toggles {
   position:absolute; top:8px; right:8px;
@@ -640,6 +696,7 @@ html, body {
         <div id="globe-wrap">
           <canvas id="globeCanvas"></canvas>
           <div id="exchangeLabels"></div>
+          <div id="forexLabels"></div>
 
           <!-- Toggle buttons -->
           <div id="globe-toggles">
@@ -892,7 +949,26 @@ function switchPage(p) {
 ───────────────────────────────────────────────────────────── */
 var dataTabs  = ['futures','commod','fx','crypto','bonds'];
 var curData   = 'futures';
-var loadedTabs = { futures:true }; // futures already loaded on page init
+var loadedTabs = {};
+
+function loadTabWidgets(name) {
+  if (loadedTabs[name]) return;
+  loadedTabs[name] = true;
+  var pane = document.getElementById('dp-' + name);
+  var rows = pane.querySelectorAll('[data-sym]');
+  rows.forEach(function(row) {
+    var sym = row.getAttribute('data-sym');
+    var s = document.createElement('script');
+    s.type  = 'text/javascript';
+    s.src   = 'https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js';
+    s.async = true;
+    s.textContent = JSON.stringify({
+      symbol:sym, width:'100%',
+      colorTheme:'dark', isTransparent:true, locale:'en'
+    });
+    row.appendChild(s);
+  });
+}
 
 function switchData(name) {
   if (name === curData) return;
@@ -901,25 +977,13 @@ function switchData(name) {
     document.getElementById('dt-' + t).classList.toggle('active', t === name);
     document.getElementById('dp-' + t).classList.toggle('active', t === name);
   });
-  // Lazy load widgets on first visit
-  if (!loadedTabs[name]) {
-    loadedTabs[name] = true;
-    var pane = document.getElementById('dp-' + name);
-    var rows = pane.querySelectorAll('[data-sym]');
-    rows.forEach(function(row) {
-      var sym = row.getAttribute('data-sym');
-      var s = document.createElement('script');
-      s.type  = 'text/javascript';
-      s.src   = 'https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js';
-      s.async = true;
-      s.textContent = JSON.stringify({
-        symbol:sym, width:'100%',
-        colorTheme:'dark', isTransparent:true, locale:'en'
-      });
-      row.appendChild(s);
-    });
-  }
+  loadTabWidgets(name);
 }
+
+// Load futures immediately on page ready
+document.addEventListener('DOMContentLoaded', function() {
+  loadTabWidgets('futures');
+});
 
 /* ─────────────────────────────────────────────────────────────
    MAP TABS
@@ -1438,27 +1502,12 @@ function globeDraw() {
     document.getElementById('exchangeLabels').innerHTML = '';
   }
 
-  /* Forex labels drawn on canvas */
+  /* Forex labels — HTML cards like equities */
   if (globeLayers.forex) {
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    FOREX_DOTS.forEach(function(f) {
-      var vis = d3.geoDistance([f.lon,f.lat],[-globeRot[0],-globeRot[1]]) < Math.PI/2;
-      if (!vis) return;
-      var v = proj([f.lon, f.lat]);
-      if (!v) return;
-      var p   = fxPrices[f.id];
-      var chg = parseFloat(p.chg);
-      ctx.font      = 'bold 7px Rajdhani,sans-serif';
-      ctx.fillStyle = '#ffbb0099';
-      ctx.fillText(f.label, v[0], v[1]-8);
-      ctx.font      = 'bold 9px Exo 2,sans-serif';
-      ctx.fillStyle = '#ffcc44';
-      ctx.fillText(p.price, v[0], v[1]+2);
-      ctx.font      = '7px Rajdhani,sans-serif';
-      ctx.fillStyle = chg >= 0 ? '#00ff88' : '#ff3d3d';
-      ctx.fillText((chg >= 0 ? '+' : '') + p.chg + '%', v[0], v[1]+12);
-    });
+    updateForexLabels(proj);
+  } else {
+    var fxContainer = document.getElementById('forexLabels');
+    if (fxContainer) fxContainer.innerHTML = '';
   }
 
   requestAnimationFrame(globeDraw);
@@ -1476,24 +1525,86 @@ document.addEventListener('visibilitychange', function() {
   }
 });
 
-/* Exchange labels as HTML for better readability */
+/* Exchange labels — card design with collision detection */
 function updateExchangeLabels(proj) {
-  var d3  = window._d3;
+  var d3 = window._d3;
   var container = document.getElementById('exchangeLabels');
   var html = '';
+  var placed = []; // track placed label positions for collision detection
+
   EXCHANGES.forEach(function(e) {
-    var vis = d3.geoDistance([e.lon, e.lat], [-globeRot[0], -globeRot[1]]) < Math.PI/2;
-    if (!vis) return;
+    var dist = d3.geoDistance([e.lon, e.lat], [-globeRot[0], -globeRot[1]]);
+    if (dist > Math.PI/2) return;
+    // Fade near edge
+    var edge = dist / (Math.PI/2);
+    if (edge > 0.92) return;
+    var opacity = Math.max(0, 1 - Math.pow(edge, 2) * 2.5);
     var v = proj([e.lon, e.lat]);
     if (!v) return;
-    var p   = exPrices[e.id];
-    var chg = parseFloat(p.chg);
-    var chgColor = chg >= 0 ? '#00ff88' : '#ff3d3d';
+
+    // Collision detection — skip if too close to already placed label
+    var tooClose = placed.some(function(p) {
+      var dx = p[0] - v[0], dy = p[1] - v[1];
+      return Math.sqrt(dx*dx + dy*dy) < 72;
+    });
+    if (tooClose) return;
+    placed.push(v);
+
+    var p       = exPrices[e.id];
+    var chg     = parseFloat(p.chg);
+    var chgColor = chg >= 0 ? '#00ff88' : '#ff4455';
     var chgSign  = chg >= 0 ? '+' : '';
-    html += '<div class="ex-label" style="left:' + v[0] + 'px;top:' + v[1] + 'px;">' +
-      '<span class="ex-name">' + e.label + '</span>' +
-      '<span class="ex-price">' + parseFloat(p.price).toLocaleString() + '</span>' +
-      '<span class="ex-chg" style="color:' + chgColor + '">' + chgSign + p.chg + '%</span>' +
+    var price    = parseFloat(p.price).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+    html += '<div class="ex-label" style="left:' + v[0] + 'px;top:' + v[1] + 'px;opacity:' + opacity + ';">' +
+      '<div class="ex-card">' +
+        '<span class="ex-name">' + e.label + '</span>' +
+        '<span class="ex-price">' + price + '</span>' +
+        '<span class="ex-chg ' + (chg >= 0 ? 'up' : 'down') + '">' + chgSign + chg.toFixed(2) + '%</span>' +
+      '</div>' +
+      '<div class="ex-stem"></div>' +
+      '<div class="ex-dot"></div>' +
+    '</div>';
+  });
+  container.innerHTML = html;
+}
+
+/* Forex labels — amber card design with collision detection */
+function updateForexLabels(proj) {
+  var d3 = window._d3;
+  var container = document.getElementById('forexLabels');
+  var html = '';
+  var placed = [];
+
+  FOREX_DOTS.forEach(function(f) {
+    var dist = d3.geoDistance([f.lon, f.lat], [-globeRot[0], -globeRot[1]]);
+    if (dist > Math.PI/2) return;
+    var edge = dist / (Math.PI/2);
+    if (edge > 0.92) return;
+    var opacity = Math.max(0, 1 - Math.pow(edge, 2) * 2.5);
+    var v = proj([f.lon, f.lat]);
+    if (!v) return;
+
+    var tooClose = placed.some(function(p) {
+      var dx = p[0] - v[0], dy = p[1] - v[1];
+      return Math.sqrt(dx*dx + dy*dy) < 72;
+    });
+    if (tooClose) return;
+    placed.push(v);
+
+    var p    = fxPrices[f.id];
+    var chg  = parseFloat(p.chg);
+    var chgColor = chg >= 0 ? '#00ff88' : '#ff4455';
+    var chgSign  = chg >= 0 ? '+' : '';
+
+    html += '<div class="ex-label" style="left:' + v[0] + 'px;top:' + v[1] + 'px;opacity:' + opacity + ';">' +
+      '<div class="fx-card">' +
+        '<span class="fx-name">' + f.label + '</span>' +
+        '<span class="fx-price">' + p.price + '</span>' +
+        '<span class="fx-chg" style="color:' + chgColor + '">' + chgSign + chg.toFixed(2) + '%</span>' +
+      '</div>' +
+      '<div class="ex-stem" style="background:rgba(255,187,0,0.4);"></div>' +
+      '<div class="fx-dot"></div>' +
     '</div>';
   });
   container.innerHTML = html;
