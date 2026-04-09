@@ -896,15 +896,33 @@ html, body {
 
     <!-- RIGHT: coming soon -->
     <div id="recon-right">
-      <div class="panel" style="flex:1;">
+
+      <!-- Economic Calendar -->
+      <div class="panel" style="flex:1;min-height:0;">
         <div class="panel-inner">
-          <div class="coming-soon">
-            <div class="icon">&#128197;</div>
-            <div class="label">COMING SOON</div>
-            <div class="items">Economic Calendar<br>Earnings Calendar<br>CB Tracker</div>
+          <div class="panel-head">
+            <span class="panel-title">&#128197; Econ Calendar</span>
+            <span class="badge dim" id="econ-badge">LOADING</span>
+          </div>
+          <div id="econ-feed" style="flex:1;min-height:0;overflow-y:auto;font-size:9px;">
+            <div style="color:#4a7a8a;text-align:center;padding:12px;letter-spacing:1px;">Loading...</div>
           </div>
         </div>
       </div>
+
+      <!-- Earnings Calendar -->
+      <div class="panel" style="flex:1;min-height:0;">
+        <div class="panel-inner">
+          <div class="panel-head">
+            <span class="panel-title">&#128202; Earnings</span>
+            <span class="badge dim" id="earn-badge">LOADING</span>
+          </div>
+          <div id="earn-feed" style="flex:1;min-height:0;overflow-y:auto;font-size:9px;">
+            <div style="color:#4a7a8a;text-align:center;padding:12px;letter-spacing:1px;">Loading...</div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div><!-- /page-recon -->
@@ -1417,15 +1435,12 @@ var fhFetching = false;
 
 function fhEnqueueAll() {
   fhQueue = [];
-  /* Exchanges */
+  /* One FX item — the handler fetches ALL forex rates in one call */
+  fhQueue.push({ type:'fx', id:'all', sym:'USD' });
+  /* Exchanges — one quote per ETF symbol */
   EXCHANGES.forEach(function(e) {
     var sym = EX_SYMBOLS[e.id];
     if (sym) fhQueue.push({ type:'ex', id:e.id, sym:sym });
-  });
-  /* Forex */
-  FOREX_DOTS.forEach(function(f) {
-    var sym = FX_SYMBOLS[f.id];
-    if (sym) fhQueue.push({ type:'fx', id:f.id, sym:sym });
   });
   if (!fhFetching) fhDrain();
 }
@@ -1443,16 +1458,60 @@ function fhDrain() {
 function fhFetch(item, cb) {
   var url;
   if (item.type === 'fx') {
-    /* Finnhub forex quote endpoint */
-    url = 'https://finnhub.io/api/v1/forex/candle?symbol=OANDA:' +
-          item.sym.replace('/','_') +
-          '&resolution=D&count=2&token=' + FINNHUB_KEY;
-  } else {
-    /* Finnhub stock quote endpoint */
-    url = 'https://finnhub.io/api/v1/quote?symbol=' + item.sym +
-          '&token=' + FINNHUB_KEY;
+    /* Finnhub forex rates endpoint — free tier supported */
+    url = 'https://finnhub.io/api/v1/forex/rates?base=USD&token=' + FINNHUB_KEY;
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 8000;
+    xhr.onload = function() {
+      try {
+        if (xhr.status === 200) {
+          var d = JSON.parse(xhr.responseText);
+          if (d.quote) {
+            // Process ALL forex at once from this single call
+            FOREX_DOTS.forEach(function(f) {
+              var sym = FX_SYMBOLS[f.id]; // e.g. 'EUR/USD'
+              var parts = sym.split('/');
+              var base  = parts[0];
+              var quote = parts[1];
+              var rate;
+              if (base === 'USD') {
+                rate = d.quote[quote];
+              } else if (quote === 'USD') {
+                rate = d.quote[base] ? 1/d.quote[base] : null;
+              } else {
+                // Cross rate
+                var toBase  = d.quote[base];
+                var toQuote = d.quote[quote];
+                rate = (toBase && toQuote) ? toQuote/toBase : null;
+              }
+              if (rate) {
+                // Estimate % change using small random walk since FRED rates don't include prev close
+                // We store prev rate and calc real change on next fetch
+                var prev = fxPrices[f.id] && fxPrices[f.id].price !== '--'
+                           ? parseFloat(fxPrices[f.id].price) : rate;
+                var chg  = prev ? ((rate - prev) / prev * 100) : 0;
+                fxPrices[f.id] = {
+                  price: rate.toFixed(4),
+                  chg:   chg.toFixed(2),
+                  dec:   4
+                };
+              }
+            });
+            // Mark all FX done — drain remaining non-fx items
+            fhQueue = fhQueue.filter(function(i){ return i.type !== 'fx'; });
+          }
+        }
+      } catch(e) { console.log('FX parse error', e); }
+      cb();
+    };
+    xhr.onerror = xhr.ontimeout = function(){ cb(); };
+    xhr.send();
+    return; // exit early — handled all FX above
   }
 
+  /* Stock quote endpoint */
+  url = 'https://finnhub.io/api/v1/quote?symbol=' + item.sym + '&token=' + FINNHUB_KEY;
   var xhr = new XMLHttpRequest();
   xhr.open('GET', url, true);
   xhr.timeout = 8000;
@@ -1460,28 +1519,13 @@ function fhFetch(item, cb) {
     try {
       if (xhr.status === 200) {
         var d = JSON.parse(xhr.responseText);
-        if (item.type === 'fx') {
-          /* Forex candle: c = close array, pc = prev close */
-          if (d.c && d.c.length >= 2) {
-            var curr = d.c[d.c.length-1];
-            var prev = d.c[d.c.length-2];
-            var chg  = prev ? ((curr-prev)/prev*100) : 0;
-            fxPrices[item.id] = {
-              price: curr.toFixed(4),
-              chg:   chg.toFixed(2),
-              dec:   4
-            };
-          }
-        } else {
-          /* Stock quote: c = current, pc = prev close */
-          if (d.c && d.c > 0) {
-            var chg = d.pc ? ((d.c-d.pc)/d.pc*100) : 0;
-            exPrices[item.id] = {
-              price: d.c.toFixed(2),
-              chg:   chg.toFixed(2),
-              dec:   2
-            };
-          }
+        if (d.c && d.c > 0) {
+          var chg = d.pc ? ((d.c - d.pc) / d.pc * 100) : 0;
+          exPrices[item.id] = {
+            price: d.c.toFixed(2),
+            chg:   chg.toFixed(2),
+            dec:   2
+          };
         }
       }
     } catch(e) {}
@@ -1720,8 +1764,21 @@ function globeDraw() {
   /* Conflicts */
   if (globeLayers.conflicts) {
     CONFLICTS.forEach(function(e) {
+      var vis = d3.geoDistance([e.lon,e.lat],[-globeRot[0],-globeRot[1]]) < Math.PI/2;
+      if (!vis) return;
+      var v = proj([e.lon, e.lat]);
+      if (!v) return;
       var r = e.severity==='Red'?6:e.severity==='Orange'?5:4;
       drawDot(e.lat, e.lon, EVENT_COLORS.conflict, r);
+      /* Label */
+      var edge = d3.geoDistance([e.lon,e.lat],[-globeRot[0],-globeRot[1]]) / (Math.PI/2);
+      var alpha = Math.max(0, 1 - Math.pow(edge,2)*2.5);
+      ctx.globalAlpha = alpha;
+      ctx.font = 'bold 8px Rajdhani,sans-serif';
+      ctx.fillStyle = '#ff6666';
+      ctx.textAlign = 'center';
+      ctx.fillText(e.name.split(' ')[0], v[0], v[1] - 12);
+      ctx.globalAlpha = 1;
     });
   }
 
@@ -1993,28 +2050,35 @@ function showPopup(ev, x, y) {
   // Show static info immediately for chokepoints and bases
   if (ev.note) { document.getElementById('popup-body').textContent = ev.note; }
 
-  /* Call Netlify summary function */
-  fetch('https://gilded-syrniki-e7be1e.netlify.app/.netlify/functions/summary', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ name:ev.name, type:ev.type, lat:ev.lat, lon:ev.lon })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    var text = '';
-    if (data.content && Array.isArray(data.content)) {
-      data.content.forEach(function(b){ if (b.type==='text') text += b.text; });
-    }
-    if (text.trim()) {
-      document.getElementById('popup-body').textContent = text.trim();
-      document.getElementById('popup-source').textContent = '&#128269; Live search · ' + (ev.source||'') + (ev.utcTime ? ' · ' + ev.utcTime + ' UTC' : '');
-    }
-  })
-  .catch(function(){
-    if (!ev.note) {
-      document.getElementById('popup-body').textContent = 'Add Anthropic API credits to Netlify for live briefings.';
-    }
-  });
+  /* Call Netlify with retry */
+  function tryBriefing(attempt) {
+    fetch('https://gilded-syrniki-e7be1e.netlify.app/.netlify/functions/summary', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name:ev.name, type:ev.type, lat:ev.lat, lon:ev.lon })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var text = '';
+      if (data.content && Array.isArray(data.content)) {
+        data.content.forEach(function(b){ if (b.type==='text') text += b.text; });
+      }
+      if (text.trim()) {
+        document.getElementById('popup-body').textContent   = text.trim();
+        document.getElementById('popup-source').textContent = '&#128269; Live search · ' + (ev.source||'') + (ev.utcTime ? ' · ' + ev.utcTime + ' UTC':'');
+      } else if (attempt < 2) {
+        setTimeout(function(){ tryBriefing(attempt+1); }, 2500);
+      }
+    })
+    .catch(function(){
+      if (attempt < 2) {
+        setTimeout(function(){ tryBriefing(attempt+1); }, 2500);
+      } else if (!ev.note) {
+        document.getElementById('popup-body').textContent = 'Briefing unavailable — check Netlify API credits.';
+      }
+    });
+  }
+  tryBriefing(1);
 }
 
 function closePopup() {
@@ -2415,8 +2479,144 @@ function dismissAlert() {
 
 window.addEventListener('load', function(){
   setTimeout(initGlobe, 300);
-  setTimeout(checkMacroStack, 8000); // check after real prices load (TD fetch takes ~2s)
+  setTimeout(checkMacroStack, 8000);
 });
+
+/* ─────────────────────────────────────────────────────────────
+   ECONOMIC CALENDAR — Forex Factory JSON feed
+───────────────────────────────────────────────────────────── */
+var econLoaded = false;
+
+function loadEconCalendar() {
+  if (econLoaded) return;
+  econLoaded = true;
+  document.getElementById('econ-badge').textContent = 'LOADING';
+  var url = 'https://api.allorigins.win/raw?url=' +
+            encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    try {
+      if (xhr.status === 200) {
+        var events = JSON.parse(xhr.responseText);
+        renderEconCalendar(events);
+      } else { econError(); }
+    } catch(e) { econError(); }
+  };
+  xhr.onerror = xhr.ontimeout = econError;
+  xhr.send();
+}
+
+function econError() {
+  document.getElementById('econ-badge').textContent = 'ERROR';
+  document.getElementById('econ-feed').innerHTML =
+    '<div style="color:#4a7a8a;text-align:center;padding:12px;font-size:8px;letter-spacing:1px;">Unable to load calendar</div>';
+}
+
+function renderEconCalendar(events) {
+  var badge = document.getElementById('econ-badge');
+  var feed  = document.getElementById('econ-feed');
+  badge.textContent = 'LIVE'; badge.className = 'badge live';
+  var impColors = { 'High':'#ff3d3d', 'Medium':'#ffbb00', 'Low':'#4a7a8a' };
+  var filtered = events
+    .filter(function(e){ return e.impact === 'High' || e.impact === 'Medium'; })
+    .slice(0, 30);
+  if (!filtered.length) {
+    feed.innerHTML = '<div style="color:#4a7a8a;padding:8px;text-align:center;font-size:8px;">No high-impact events this week</div>';
+    return;
+  }
+  feed.innerHTML = filtered.map(function(e) {
+    var col    = impColors[e.impact] || '#4a7a8a';
+    var actual = e.actual   ? '<span style="color:#00ff88;font-weight:700;">' + e.actual + '</span>' : '--';
+    var fore   = e.forecast ? e.forecast : '--';
+    var prev   = e.previous ? e.previous : '--';
+    var dt     = new Date(e.date);
+    var timeStr = dt.toUTCString().replace(/.*(\d{2}:\d{2}):\d{2}.*/, '$1') + ' UTC';
+    return '<div style="padding:5px 4px;border-bottom:1px solid rgba(0,212,255,0.07);">' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:2px;">' +
+        '<span style="font-size:8px;font-weight:700;color:' + col + ';">' + e.currency + ' — ' + e.impact + '</span>' +
+        '<span style="font-size:7px;color:#4a7a8a;">' + timeStr + '</span>' +
+      '</div>' +
+      '<div style="color:#e0e0e0;font-size:9px;margin-bottom:2px;">' + e.title + '</div>' +
+      '<div style="display:flex;gap:8px;font-size:8px;color:#a8e8f8;">' +
+        '<span>Act: ' + actual + '</span><span>Fcst: ' + fore + '</span><span>Prev: ' + prev + '</span>' +
+      '</div></div>';
+  }).join('');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   EARNINGS CALENDAR — Finnhub free tier
+───────────────────────────────────────────────────────────── */
+var earningsLoaded = false;
+
+function loadEarnings() {
+  if (earningsLoaded) return;
+  earningsLoaded = true;
+  document.getElementById('earn-badge').textContent = 'LOADING';
+  function fmtDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  var today    = new Date();
+  var nextWeek = new Date(today.getTime() + 7*24*60*60*1000);
+  var url = 'https://finnhub.io/api/v1/calendar/earnings?from=' + fmtDate(today) +
+            '&to=' + fmtDate(nextWeek) + '&token=' + FINNHUB_KEY;
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 12000;
+  xhr.onload = function() {
+    try {
+      if (xhr.status === 200) {
+        var data = JSON.parse(xhr.responseText);
+        renderEarnings(data.earningsCalendar || []);
+      } else { earningsError(); }
+    } catch(e) { earningsError(); }
+  };
+  xhr.onerror = xhr.ontimeout = earningsError;
+  xhr.send();
+}
+
+function earningsError() {
+  document.getElementById('earn-badge').textContent = 'ERROR';
+  document.getElementById('earn-feed').innerHTML =
+    '<div style="color:#4a7a8a;text-align:center;padding:12px;font-size:8px;">Unable to load earnings</div>';
+}
+
+function renderEarnings(earnings) {
+  var badge = document.getElementById('earn-badge');
+  var feed  = document.getElementById('earn-feed');
+  badge.textContent = 'LIVE'; badge.className = 'badge live';
+  if (!earnings.length) {
+    feed.innerHTML = '<div style="color:#4a7a8a;padding:8px;text-align:center;font-size:8px;">No earnings this week</div>';
+    return;
+  }
+  earnings.sort(function(a,b){ return a.date > b.date ? 1:-1; });
+  feed.innerHTML = earnings.slice(0,30).map(function(e) {
+    var epsEst = e.epsEstimate != null ? e.epsEstimate.toFixed(2) : '--';
+    var epsAct = e.epsActual   != null ? '<span style="color:#00ff88;font-weight:700;">' + e.epsActual.toFixed(2) + '</span>' : '--';
+    var time   = e.hour==='bmo' ? '<span style="color:#ffbb00;font-size:7px;">BMO</span>' :
+                 e.hour==='amc' ? '<span style="color:#cc88ff;font-size:7px;">AMC</span>' : '';
+    return '<div style="padding:5px 4px;border-bottom:1px solid rgba(0,212,255,0.07);">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<span style="font-size:10px;font-weight:700;color:#00d4ff;">' + e.symbol + '</span>' +
+        time + '<span style="font-size:7px;color:#4a7a8a;">' + e.date + '</span>' +
+      '</div>' +
+      (e.company ? '<div style="font-size:8px;color:#4a7a8a;margin-top:1px;">' + e.company + '</div>' : '') +
+      '<div style="display:flex;gap:8px;font-size:8px;margin-top:2px;color:#a8e8f8;">' +
+        '<span>Est: ' + epsEst + '</span><span>Act: ' + epsAct + '</span>' +
+      '</div></div>';
+  }).join('');
+}
+
+/* Hook into switchPage to load calendars on first RECON visit */
+var _spOrig = switchPage;
+switchPage = function(p) {
+  _spOrig(p);
+  if (p === 'recon') {
+    setTimeout(loadEconCalendar, 300);
+    setTimeout(loadEarnings,     500);
+  }
+};
 </script>
 </body>
 </html>
