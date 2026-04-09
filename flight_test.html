@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"/><title>Flight Test</title>
+<style>body{background:#000913;color:#00d4ff;font-family:monospace;padding:20px;}
+#log{background:#000d1a;border:1px solid #00d4ff33;padding:16px;font-size:11px;line-height:1.9;max-height:80vh;overflow-y:auto;}
+.ok{color:#00ff88;}.err{color:#ff3d3d;}.info{color:#ffbb00;}</style>
+</head>
+<body>
+<h3 style="letter-spacing:4px;margin-bottom:16px">// OPENSKY FLIGHT TEST //</h3>
+<div id="log">Testing...</div>
+<script>
+var L=document.getElementById('log');
+function add(msg,cls){var d=document.createElement('div');d.className=cls||'';d.textContent=msg;L.appendChild(d);L.scrollTop=L.scrollHeight;}
+
+var MIL_PREFIXES=['RCH','REACH','USAF','MARLIN','SPAR','SAM','NATO','RRR','RFF','GAF','IAF','FORTE','TOPAZ','REAPER','HERKY','COBRA','VIPER','RAPTOR','ATLAS','CNV'];
+var MIL_ICAO=['AE','43','0D','3F'];
+function isMilitary(cs,ic){
+  cs=(cs||'').trim().toUpperCase(); ic=(ic||'').toUpperCase();
+  for(var i=0;i<MIL_PREFIXES.length;i++){if(cs.indexOf(MIL_PREFIXES[i])===0)return true;}
+  for(var j=0;j<MIL_ICAO.length;j++){if(ic.indexOf(MIL_ICAO[j])===0)return true;}
+  return false;
+}
+
+add('Test 1: allorigins → OpenSky','info');
+var url='https://api.allorigins.win/raw?url='+encodeURIComponent('https://opensky-network.org/api/states/all');
+var xhr=new XMLHttpRequest(); xhr.open('GET',url,true); xhr.timeout=20000;
+xhr.onload=function(){
+  add('HTTP: '+xhr.status+' — '+xhr.responseText.length+' bytes',xhr.status===200?'ok':'err');
+  if(xhr.status===200){
+    try{
+      var data=JSON.parse(xhr.responseText);
+      var states=data.states||[];
+      add('Total aircraft in sky: '+states.length,'ok');
+      var mil=states.filter(function(s){return !s[8]&&s[6]&&s[5]&&isMilitary(s[1],s[0]);});
+      add('Military aircraft found: '+mil.length, mil.length>0?'ok':'err');
+      if(mil.length>0){
+        mil.slice(0,5).forEach(function(s){
+          add('  ✈ '+((s[1]||'').trim())||s[0]+' @ lat:'+s[6].toFixed(1)+' lon:'+s[5].toFixed(1),'ok');
+        });
+      } else {
+        add('No military matches — showing 5 sample callsigns:','info');
+        states.slice(0,5).forEach(function(s){ add('  sample: "'+((s[1]||'').trim())+'" icao:'+s[0],'info'); });
+      }
+    }catch(e){add('Parse error: '+e.message,'err'); add('Raw: '+xhr.responseText.substring(0,200),'err');}
+  }
+};
+xhr.onerror=function(){add('NETWORK ERROR — allorigins blocked OpenSky','err');};
+xhr.ontimeout=function(){add('TIMEOUT after 20s','err');};
+xhr.send();
+</script>
+</body>
+</html>
