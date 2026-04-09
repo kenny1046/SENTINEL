@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SENTINEL // Geopolitical OSINT Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;600;700&family=Exo+2:wght@100;300;400;700&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{width:100%;height:100%;background:#000913;color:#00d4ff;font-family:'Rajdhani',sans-serif;overflow:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.025) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+  .dash{position:relative;z-index:1;width:100vw;height:100vh;display:grid;grid-template-rows:auto auto 1fr;gap:6px;padding:8px;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid #00d4ff55;position:relative;flex-shrink:0;}
+  .topbar::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#00d4ff,transparent);opacity:0.5;}
+  .logo{font-family:'Exo 2',sans-serif;font-size:22px;font-weight:700;letter-spacing:8px;color:#00d4ff;text-shadow:0 0 20px rgba(0,212,255,0.6);}
+  .logo span{color:#4df7ff;}
+  .topbar-center{display:flex;gap:20px;font-size:11px;color:#4a7a8a;letter-spacing:2px;text-transform:uppercase;align-items:center;}
+  .sep{color:#00d4ff33;}
+  .live-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;animation:blink 1.2s infinite;}
+  .live-dot.red{background:#ff3d3d;box-shadow:0 0 8px #ff3d3d;}
+  .live-dot.green{background:#00ff88;box-shadow:0 0 8px #00ff88;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.15}}
+  .clock{font-family:'Exo 2',sans-serif;font-size:15px;font-weight:300;color:#4df7ff;letter-spacing:3px;}
+
+  .ticker-bar{background:#000d1a;border-top:1px solid #00d4ff33;border-bottom:1px solid #00d4ff33;overflow:visible;position:relative;flex-shrink:0;height:46px;z-index:2;}
+  .ticker-bar .tradingview-widget-container{position:absolute;inset:0;height:46px;}
+  .ticker-bar .tradingview-widget-container__widget{height:46px!important;}
+  .ticker-bar iframe{height:46px!important;min-height:46px!important;}
+
+  .main-layout{display:grid;grid-template-columns:245px 1fr 245px;gap:6px;min-height:0;}
+  .side-panel{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:hidden;}
+  .panel{background:#000d1a;border:1px solid #00d4ff33;display:flex;flex-direction:column;min-height:0;overflow:hidden;position:relative;}
+  .panel::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg,rgba(0,212,255,0.03) 0%,transparent 40%);pointer-events:none;z-index:0;}
+  .panel-inner{padding:8px;display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;position:relative;z-index:1;}
+  .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid #00d4ff1a;flex-shrink:0;}
+  .panel-title{font-size:10px;letter-spacing:3px;color:#00d4ff88;text-transform:uppercase;font-weight:600;}
+  .panel-badge{font-size:9px;background:#00d4ff18;color:#00d4ff;padding:2px 7px;letter-spacing:2px;border:1px solid #00d4ff33;}
+  .panel-badge.live{background:#00ff8822;color:#00ff88;border-color:#00ff8855;}
+  .panel-scroll{overflow-y:auto;flex:1;min-height:0;}
+  .panel-scroll::-webkit-scrollbar{width:2px;}
+  .panel-scroll::-webkit-scrollbar-thumb{background:#00d4ff22;}
+
+  .data-tabs{display:flex;flex-shrink:0;margin-bottom:6px;border-bottom:1px solid #00d4ff1a;}
+  .data-tab{flex:1;padding:5px 0;font-size:8px;letter-spacing:1px;text-transform:uppercase;text-align:center;cursor:pointer;color:#4a7a8a;border:none;background:transparent;font-family:'Rajdhani',sans-serif;border-bottom:2px solid transparent;transition:all 0.15s;margin-bottom:-1px;}
+  .data-tab.active{color:#00d4ff;border-bottom-color:#00d4ff;}
+  .data-tab:hover:not(.active){color:#00d4ff55;}
+
+  .tv-wrap{flex:1;min-height:0;position:relative;overflow:hidden;}
+  .tv-panel{position:absolute;inset:0;display:none;flex-direction:column;overflow-y:auto;overflow-x:hidden;gap:1px;}
+  .tv-panel.active{display:flex;}
+  .tv-panel::-webkit-scrollbar{width:2px;}
+  .tv-panel::-webkit-scrollbar-thumb{background:#00d4ff22;}
+
+  /* Label + widget row */
+  .sq-label{font-size:8px;letter-spacing:2px;color:#4a7a8a;text-transform:uppercase;padding:5px 6px 1px;flex-shrink:0;}
+  .sq-row{flex-shrink:0;width:100%;overflow:hidden;}
+  .sq-row .tradingview-widget-container{width:100%!important;overflow:hidden!important;}
+  .sq-row .tradingview-widget-container__widget{width:100%!important;}
+
+  /* Note badge for ETF proxies */
+  .proxy-note{font-size:7px;color:#ffbb0077;letter-spacing:1px;padding:0 6px 3px;flex-shrink:0;}
+
+  .news-item{padding:6px 0;border-bottom:1px solid rgba(0,212,255,0.06);}
+  .news-tags{margin-bottom:3px;}
+  .news-tag{font-size:8px;letter-spacing:1px;padding:1px 5px;margin-right:4px;font-weight:700;}
+  .tag-mil{background:rgba(255,61,61,0.15);color:#ff3d3d;border:1px solid rgba(255,61,61,0.3);}
+  .tag-pol{background:rgba(255,187,0,0.15);color:#ffbb00;border:1px solid rgba(255,187,0,0.3);}
+  .tag-eco{background:rgba(0,212,255,0.1);color:#00d4ff;border:1px solid #00d4ff33;}
+  .tag-cri{background:rgba(180,0,255,0.15);color:#cc88ff;border:1px solid rgba(180,0,255,0.3);}
+  .news-text{font-size:10px;color:#a8e8f8;line-height:1.5;}
+  .news-time{font-size:9px;color:#4a7a8a;margin-top:2px;letter-spacing:1px;}
+  .alert-item{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(0,212,255,0.06);}
+  .alert-icon{font-size:12px;flex-shrink:0;margin-top:1px;}
+  .alert-text{font-size:10px;color:#a8e8f8;line-height:1.5;}
+  .alert-time{font-size:9px;color:#4a7a8a;letter-spacing:1px;}
+  .osint-section{margin-bottom:8px;}
+  .osint-section-title{font-size:9px;letter-spacing:2px;color:#00d4ff44;text-transform:uppercase;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid #00d4ff1a;}
+  .osint-link{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid rgba(0,212,255,0.04);text-decoration:none;}
+  .osint-link:hover .osint-name{color:#4df7ff;}
+  .osint-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+  .osint-name{font-size:10px;font-weight:600;letter-spacing:1px;color:#00d4ff;transition:color 0.15s;}
+  .osint-desc{font-size:8px;color:#4a7a8a;letter-spacing:1px;}
+
+  .map-container{position:relative;border:1px solid #00d4ff44;overflow:hidden;min-height:0;display:flex;flex-direction:column;}
+  .map-tabs{display:flex;flex-shrink:0;border-bottom:1px solid #00d4ff33;background:#000913;}
+  .map-tab{flex:1;padding:7px 4px;font-size:9px;letter-spacing:1px;text-transform:uppercase;text-align:center;cursor:pointer;color:#4a7a8a;transition:all 0.15s;border:none;background:transparent;font-family:'Rajdhani',sans-serif;border-right:1px solid #00d4ff1a;}
+  .map-tab:last-child{border-right:none;}
+  .map-tab.active{color:#00d4ff;background:#00d4ff0f;border-bottom:2px solid #00d4ff;}
+  .map-tab.red.active{color:#ff3d3d;border-bottom-color:#ff3d3d;background:rgba(255,61,61,0.05);}
+  .map-tab.amber.active{color:#ffbb00;border-bottom-color:#ffbb00;background:rgba(255,187,0,0.05);}
+  .map-tab:hover:not(.active){color:#00d4ff66;background:#00d4ff07;}
+  .map-frame-wrap{flex:1;position:relative;min-height:0;background:#000913;}
+  #mapFrame{position:absolute;top:0;left:0;width:100%;height:100%;border:none;}
+  .map-loading{position:absolute;inset:0;background:#000913;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:10;pointer-events:none;opacity:0;transition:opacity 0.3s;}
+  .map-loading.show{opacity:1;pointer-events:all;}
+  .loading-bar-wrap{width:200px;height:2px;background:#00d4ff22;border-radius:2px;overflow:hidden;}
+  .loading-bar{height:100%;background:#00d4ff;animation:loadpulse 1.2s ease-in-out infinite;}
+  @keyframes loadpulse{0%{width:0%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0%;margin-left:100%}}
+  .loading-text{font-size:10px;letter-spacing:3px;color:#00d4ff66;}
+  .loading-tab-name{font-size:13px;letter-spacing:2px;color:#00d4ff;}
+  .corner{position:absolute;width:12px;height:12px;z-index:500;pointer-events:none;}
+  .c-tl{top:36px;left:6px;border-top:1px solid #00d4ff;border-left:1px solid #00d4ff;}
+  .c-tr{top:36px;right:6px;border-top:1px solid #00d4ff;border-right:1px solid #00d4ff;}
+  .c-bl{bottom:6px;left:6px;border-bottom:1px solid #00d4ff;border-left:1px solid #00d4ff;}
+  .c-br{bottom:6px;right:6px;border-bottom:1px solid #00d4ff;border-right:1px solid #00d4ff;}
+  .btn-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;flex-shrink:0;}
+  .tool-btn{background:transparent;border:1px solid #00d4ff44;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;padding:4px 10px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;}
+  .tool-btn:hover{background:#00d4ff18;color:#4df7ff;}
+</style>
+</head>
+<body>
+<div class="dash">
+
+  <div class="topbar">
+    <div class="logo">// <span>SENTINEL</span> //</div>
+    <div class="topbar-center">
+      <span>Geopolitical Intelligence Platform</span>
+      <span class="sep">|</span>
+      <span>Classification: Unclassified // OSINT</span>
+      <span class="sep">|</span>
+      <span><span class="live-dot red"></span>Systems Nominal</span>
+      <span class="sep">|</span>
+      <span><span class="live-dot green"></span>Live Feeds Active</span>
+    </div>
+    <div style="display:flex;gap:20px;align-items:center;">
+      <span id="date-display" style="font-size:10px;color:#4a7a8a;letter-spacing:2px;"></span>
+      <span class="clock" id="clk">--:--:-- UTC</span>
+    </div>
+  </div>
+
+  <!-- LIVE TICKER TAPE -->
+  <div class="ticker-bar">
+    <div class="tradingview-widget-container">
+      <div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+      {"symbols":[
+        {"proName":"AMEX:SPY","title":"US500"},
+        {"proName":"AMEX:DIA","title":"US30"},
+        {"proName":"NASDAQ:QQQ","title":"TECH100"},
+        {"proName":"AMEX:IWM","title":"SMALLCAP"},
+        {"proName":"OANDA:XAUUSD","title":"GOLD"},
+        {"proName":"TVC:SILVER","title":"SILVER"},
+        {"proName":"TVC:USOIL","title":"WTI OIL"},
+        {"proName":"FX:EURUSD","title":"EUR/USD"},
+        {"proName":"FX:GBPUSD","title":"GBP/USD"},
+        {"proName":"FX:USDJPY","title":"USD/JPY"},
+        {"proName":"TVC:DXY","title":"DXY"},
+        {"proName":"BINANCE:BTCUSDT","title":"BTC"},
+        {"proName":"BINANCE:ETHUSDT","title":"ETH"},
+        {"proName":"FRED:DGS10","title":"US10Y"},
+        {"proName":"FRED:DGS30","title":"US30Y"},
+        {"proName":"FRED:DGS2","title":"US2Y"}
+      ],"showSymbolLogo":false,"colorTheme":"dark","isTransparent":true,"displayMode":"adaptive","locale":"en"}
+      </script>
+    </div>
+  </div>
+
+  <div class="main-layout">
+
+    <!-- LEFT: MARKET DATA -->
+    <div class="side-panel">
+      <div class="panel" style="flex:1">
+        <div class="panel-inner">
+          <div class="panel-header">
+            <span class="panel-title">📈 Market Data</span>
+            <span class="panel-badge live">LIVE</span>
+          </div>
+          <div class="data-tabs">
+            <button class="data-tab active" id="dtab-futures" onclick="switchData('futures')">Futures</button>
+            <button class="data-tab"        id="dtab-commod"  onclick="switchData('commod')">Commod</button>
+            <button class="data-tab"        id="dtab-fx"      onclick="switchData('fx')">FX</button>
+            <button class="data-tab"        id="dtab-crypto"  onclick="switchData('crypto')">Crypto</button>
+            <button class="data-tab"        id="dtab-bonds"   onclick="switchData('bonds')">Bonds</button>
+          </div>
+
+          <div class="tv-wrap">
+
+            <!-- FUTURES: ETF proxies — freely embeddable, track exact indices -->
+            <div class="tv-panel active" id="dpanel-futures">
+              <div class="proxy-note">via ETF proxies · track exact indices</div>
+
+              <div class="sq-label">US30 · DIA ETF (DOW JONES)</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"AMEX:DIA","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">US500 · SPY ETF (S&P 500)</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"AMEX:SPY","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">TECH100 · QQQ ETF (NASDAQ 100)</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"NASDAQ:QQQ","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">SMALL CAP · IWM ETF (RUSSELL 2000)</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"AMEX:IWM","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">VOLATILITY · VIXY ETF (VIX)</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"AMEX:VIXY","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+            </div>
+
+            <!-- COMMODITIES: TVC + OANDA — confirmed working -->
+            <div class="tv-panel" id="dpanel-commod">
+
+              <div class="sq-label">GOLD · XAU/USD</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"TVC:GOLD","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">SILVER · XAG/USD</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"TVC:SILVER","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">WTI CRUDE OIL</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"TVC:USOIL","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+            </div>
+
+            <!-- FX: all confirmed working -->
+            <div class="tv-panel" id="dpanel-fx">
+
+              <div class="sq-label">EUR / USD</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"FX:EURUSD","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">GBP / USD</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"FX:GBPUSD","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">USD / JPY</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"FX:USDJPY","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">DOLLAR INDEX · DXY</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"TVC:DXY","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+            </div>
+
+            <!-- CRYPTO: confirmed working -->
+            <div class="tv-panel" id="dpanel-crypto">
+
+              <div class="sq-label">BITCOIN · BTC/USD</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"BINANCE:BTCUSDT","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">ETHEREUM · ETH/USD</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"BINANCE:ETHUSDT","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+            </div>
+
+            <!-- BONDS: FRED series confirmed working, ETF proxies for 30Y + 2Y -->
+            <div class="tv-panel" id="dpanel-bonds">
+              <div class="proxy-note">10Y: FRED live · 30Y & 2Y via ETF proxies</div>
+
+              <div class="sq-label">US 10Y YIELD · FRED DGS10</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"FRED:DGS10","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">US 30Y YIELD · FRED DGS30</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"FRED:DGS30","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+
+              <div class="sq-label">US 2Y YIELD · FRED DGS2</div>
+              <div class="sq-row"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+                {"symbol":"FRED:DGS2","width":"100%","colorTheme":"dark","isTransparent":true,"locale":"en"}</script>
+              </div></div>
+            </div>
+
+          </div><!-- tv-wrap -->
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER MAP -->
+    <div class="map-container">
+      <div class="corner c-tl"></div><div class="corner c-tr"></div>
+      <div class="corner c-bl"></div><div class="corner c-br"></div>
+      <div class="map-tabs">
+        <button class="map-tab amber active" id="tab-globe3d"  onclick="switchTab('globe3d')">🌐 Globe</button>
+        <button class="map-tab"            id="tab-ships"   onclick="switchTab('ships')">⚓ Ships</button>
+        <button class="map-tab"            id="tab-flights" onclick="switchTab('flights')">✈ Flights</button>
+        <button class="map-tab red"        id="tab-iran"    onclick="switchTab('iran')">🔴 Iran</button>
+        <button class="map-tab red"        id="tab-global"  onclick="switchTab('global')">🌍 Global</button>
+      </div>
+      <div class="map-frame-wrap">
+        <iframe id="mapFrame" src="about:blank" allowfullscreen style="display:none;"></iframe>
+
+        <!-- 3D Globe panel — shown when globe tab active -->
+        <div id="globePanel" style="position:absolute;inset:0;display:block;background:#000913;overflow:hidden;">
+          <canvas id="globeCanvas" style="width:100%;height:100%;display:block;cursor:grab;"></canvas>
+          <!-- Exchange labels overlay -->
+          <div id="exchangeLabels" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>
+
+          <!-- Disaster info popup -->
+          <div id="disasterPopup" style="display:none;position:absolute;z-index:20;max-width:280px;pointer-events:all;">
+            <div style="background:rgba(0,9,19,0.97);border:1px solid #ff8c00;padding:10px 12px;font-family:Rajdhani,sans-serif;position:relative;">
+              <button onclick="closeDisasterPopup()" style="position:absolute;top:4px;right:6px;background:transparent;border:none;color:#4a7a8a;font-size:14px;cursor:pointer;line-height:1;">✕</button>
+              <div id="popupType" style="font-size:8px;letter-spacing:2px;text-transform:uppercase;margin-bottom:3px;color:#ff8c00;"></div>
+              <div id="popupName" style="font-size:11px;font-weight:700;color:#ffffff;letter-spacing:1px;margin-bottom:2px;padding-right:16px;"></div>
+              <div id="popupTime" style="font-size:8px;color:#4a7a8a;letter-spacing:1px;margin-bottom:8px;"></div>
+              <div id="popupBody" style="font-size:10px;color:#a8e8f8;line-height:1.6;min-height:40px;"></div>
+              <div id="popupSource" style="font-size:8px;color:#4a7a8a;margin-top:6px;letter-spacing:1px;"></div>
+            </div>
+            <div style="width:1px;height:10px;background:#ff8c0088;margin:0 auto;"></div>
+          </div>
+
+          <!-- Toggle controls top-right -->
+          <div style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:10;">
+            <div style="font-size:7px;letter-spacing:2px;color:#00d4ff66;text-align:right;font-family:Rajdhani,sans-serif;margin-bottom:2px;">OVERLAY TOGGLES</div>
+            <button id="toggle-equities" onclick="toggleLayer('equities')"
+              style="background:rgba(0,9,19,0.9);border:1px solid rgba(0,212,255,0.6);color:#00d4ff;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;">
+              📈 EQUITIES ON
+            </button>
+            <button id="toggle-forex" onclick="toggleLayer('forex')"
+              style="background:rgba(0,9,19,0.9);border:1px solid rgba(255,187,0,0.6);color:#ffbb00;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;">
+              💱 FOREX ON
+            </button>
+            <button id="toggle-events" onclick="toggleLayer('events')"
+              style="background:rgba(0,9,19,0.9);border:1px solid rgba(255,140,0,0.6);color:#ff8c00;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;">
+              ⚠ DISASTERS ON
+            </button>
+            <button id="toggle-conflicts" onclick="toggleLayer('conflicts')"
+              style="background:rgba(0,9,19,0.9);border:1px solid rgba(255,61,61,0.6);color:#ff3d3d;font-family:Rajdhani,sans-serif;font-size:8px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-align:left;transition:all 0.15s;">
+              ⚔ CONFLICTS ON
+            </button>
+          </div>
+
+          <!-- Event legend bottom-left -->
+          <div style="position:absolute;bottom:8px;left:8px;pointer-events:none;background:rgba(0,9,19,0.85);border:1px solid #00d4ff22;padding:5px 8px;font-family:Rajdhani,sans-serif;">
+            <div style="font-size:7px;letter-spacing:2px;color:#00d4ff66;margin-bottom:3px;">LIVE EVENTS</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px 8px;">
+              <span style="font-size:8px;color:#ff0000;">● Conflict</span>
+              <span style="font-size:8px;color:#ff8c00;">● Earthquake</span>
+              <span style="font-size:8px;color:#cc44ff;">● Cyclone</span>
+              <span style="font-size:8px;color:#0088ff;">● Flood</span>
+              <span style="font-size:8px;color:#ff00ff;">● Volcano</span>
+              <span style="font-size:8px;color:#ff6600;">● Wildfire</span>
+              <span style="font-size:8px;color:#00ff44;">● Epidemic</span>
+              <span style="font-size:8px;color:#ffcc00;">● Drought</span>
+            </div>
+            <div style="font-size:7px;color:#4a7a8a;margin-top:2px;letter-spacing:1px;">DOT SIZE = SEVERITY · CLICK FOR LIVE BRIEFING</div>
+            <div id="globeDataStatus" style="font-size:7px;color:#4a7a8a;margin-top:3px;letter-spacing:1px;border-top:1px solid #00d4ff11;padding-top:3px;">
+              ⏳ Loading disaster data...
+            </div>
+          </div>
+        </div>
+
+        <div class="map-loading" id="mapLoading">
+          <div class="loading-tab-name" id="loadingTabName">IRAN</div>
+          <div class="loading-bar-wrap"><div class="loading-bar"></div></div>
+          <div class="loading-text">LOADING FEED...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="side-panel">
+
+      <!-- INTEL FEED — Telegram posts via CORS proxy -->
+      <div class="panel" style="flex:1">
+        <div class="panel-inner" style="padding:8px 6px;">
+          <div class="panel-header">
+            <span class="panel-title">📡 Intel Feed</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="panel-badge live" id="feedBadge">LOADING</span>
+              <button onclick="loadAllFeeds()" style="background:transparent;border:1px solid #00d4ff33;color:#00d4ff;font-family:'Rajdhani',sans-serif;font-size:8px;padding:2px 7px;cursor:pointer;letter-spacing:1px;">↺</button>
+            </div>
+          </div>
+
+          <div id="intelFeed" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;font-size:10px;">
+            <div style="color:#4a7a8a;padding:12px 4px;text-align:center;letter-spacing:2px;font-size:9px;">◌ Loading live feed...</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- OSINT RESOURCES — tiny strip at bottom -->
+      <div class="panel" style="flex:0;min-height:90px;">
+        <div class="panel-inner" style="padding:5px 8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #00d4ff1a;flex-shrink:0;">
+            <span style="font-size:9px;letter-spacing:2px;color:#00d4ff66;text-transform:uppercase;font-weight:600;">🔗 OSINT</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <a href="https://iran.liveuamap.com/" target="_blank" style="font-size:8px;color:#ff3d3d;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,61,61,0.3);padding:2px 6px;background:rgba(255,61,61,0.08);">Iran Map</a>
+            <a href="https://acleddata.com/iran-crisis-live" target="_blank" style="font-size:8px;color:#ff3d3d;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,61,61,0.3);padding:2px 6px;background:rgba(255,61,61,0.08);">ACLED</a>
+            <a href="https://globe.adsbexchange.com/?mil=1" target="_blank" style="font-size:8px;color:#cc88ff;letter-spacing:1px;text-decoration:none;border:1px solid rgba(180,0,255,0.3);padding:2px 6px;background:rgba(180,0,255,0.08);">ADS-B</a>
+            <a href="https://www.marinetraffic.com" target="_blank" style="font-size:8px;color:#00d4ff;letter-spacing:1px;text-decoration:none;border:1px solid #00d4ff33;padding:2px 6px;background:#00d4ff0a;">MarineTraffic</a>
+            <a href="https://www.tradingview.com/" target="_blank" style="font-size:8px;color:#00ff88;letter-spacing:1px;text-decoration:none;border:1px solid rgba(0,255,136,0.3);padding:2px 6px;background:rgba(0,255,136,0.06);">TradingView</a>
+            <a href="https://www.investing.com/" target="_blank" style="font-size:8px;color:#ffbb00;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,187,0,0.3);padding:2px 6px;background:rgba(255,187,0,0.06);">Investing</a>
+            <a href="https://liveuamap.com/" target="_blank" style="font-size:8px;color:#ffbb00;letter-spacing:1px;text-decoration:none;border:1px solid rgba(255,187,0,0.3);padding:2px 6px;background:rgba(255,187,0,0.06);">LiveUAMap</a>
+            <a href="https://www.intelsky.org/" target="_blank" style="font-size:8px;color:#cc88ff;letter-spacing:1px;text-decoration:none;border:1px solid rgba(180,0,255,0.3);padding:2px 6px;background:rgba(180,0,255,0.08);">IntelSky</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+function tick(){
+  var now=new Date(),h=String(now.getUTCHours()).padStart(2,'0'),m=String(now.getUTCMinutes()).padStart(2,'0'),s=String(now.getUTCSeconds()).padStart(2,'0');
+  var days=['SUN','MON','TUE','WED','THU','FRI','SAT'],months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  document.getElementById('clk').textContent=h+':'+m+':'+s+' UTC';
+  document.getElementById('date-display').textContent=days[now.getUTCDay()]+' '+now.getUTCDate()+' '+months[now.getUTCMonth()]+' '+now.getUTCFullYear();
+}
+setInterval(tick,1000); tick();
+
+var DTABS=['futures','commod','fx','crypto','bonds'];
+var curData='futures';
+function switchData(name){
+  if(name===curData)return; curData=name;
+  DTABS.forEach(function(t){
+    document.getElementById('dtab-'+t).classList.toggle('active',t===name);
+    document.getElementById('dpanel-'+t).classList.toggle('active',t===name);
+  });
+}
+
+var URLS={
+  ships:'https://www.myshiptracking.com/?zoom=2',
+  flights:'https://globe.adsbexchange.com/?mil=1&lat=30&lon=15&zoom=3',
+  iran:'https://iran.liveuamap.com/',
+  global:'https://liveuamap.com/',
+};
+var LABELS={ships:'SHIPS',flights:'FLIGHTS',iran:'IRAN',global:'GLOBAL',globe3d:'GLOBE'};
+var MAPTABS=['ships','flights','iran','global','globe3d'];
+var curTab='globe3d';
+var frame=document.getElementById('mapFrame');
+var loading=document.getElementById('mapLoading');
+var loadingName=document.getElementById('loadingTabName');
+
+// Init globe immediately on load
+window.addEventListener('load', function(){ initGlobe(); });
+// ── Telegram Feed ─────────────────────────────────────────────────────────
+var TG_CHANNELS = [
+  { name:'FinancialJuice', color:'#ffbb00', url:'https://t.me/s/FinancialJuice' },
+  { name:'disclosetv',     color:'#ff3d3d', url:'https://t.me/s/disclosetv'     }
+];
+var tgPosts = [];
+var tgIdx   = 0;
+
+function tgFormatTime(date) {
+  if (!date || isNaN(date.getTime())) return '';
+  var d = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (d <  1)    return 'just now';
+  if (d < 60)    return d + 'm ago';
+  if (d < 1440)  return Math.floor(d/60) + 'h ago';
+  return Math.floor(d/1440) + 'd ago';
+}
+
+function tgParse(html, name, color) {
+  var out = [];
+  var parts = html.split('tgme_widget_message_wrap');
+  for (var i = 1; i < parts.length; i++) {
+    var p = parts[i];
+    var tm = p.match(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+    if (!tm) continue;
+    var txt = tm[1]
+      .replace(/<br\s*\/?>/gi,' ')
+      .replace(/<[^>]+>/g,'')
+      .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+      .replace(/\s+/g,' ').trim();
+    if (!txt || txt.length < 4) continue;
+    var dtm = p.match(/datetime="([^"]+)"/);
+    var ts  = dtm ? new Date(dtm[1]).getTime() : 0;
+    out.push({ text:txt.substring(0,220), channel:name, color:color, ts:ts, time:dtm ? tgFormatTime(new Date(dtm[1])) : '' });
+  }
+  return out;
+}
+
+function tgRender() {
+  var feed  = document.getElementById('intelFeed');
+  var badge = document.getElementById('feedBadge');
+  if (!tgPosts.length) {
+    feed.innerHTML = '<div style="color:#ff3d3d;font-size:9px;padding:16px 4px;text-align:center;">No posts loaded — click ↺ to retry</div>';
+    badge.textContent = 'ERROR'; badge.className = 'panel-badge';
+    return;
+  }
+  tgPosts.sort(function(a,b){ return b.ts - a.ts; });
+  badge.textContent = 'LIVE'; badge.className = 'panel-badge live';
+  feed.innerHTML = tgPosts.slice(0,40).map(function(p){
+    return '<div style="padding:6px 4px;border-bottom:1px solid rgba(0,212,255,0.08);">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">' +
+        '<span style="font-size:9px;font-weight:700;color:'+p.color+';letter-spacing:1px;">@'+p.channel+'</span>' +
+        '<span style="font-size:8px;color:#4a7a8a;margin-left:4px;flex-shrink:0;">'+p.time+'</span>' +
+      '</div>' +
+      '<div style="font-size:10px;color:#a8e8f8;line-height:1.55;">'+p.text+'</div>' +
+    '</div>';
+  }).join('');
+}
+
+function tgFetchNext() {
+  if (tgIdx >= TG_CHANNELS.length) { tgRender(); return; }
+  var ch  = TG_CHANNELS[tgIdx];
+  var url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ch.url);
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 20000;
+  xhr.onload = function() {
+    if (xhr.status === 200 && xhr.responseText.length > 500) {
+      var posts = tgParse(xhr.responseText, ch.name, ch.color);
+      tgPosts = tgPosts.concat(posts);
+      tgRender(); // show whatever we have immediately
+    }
+    tgIdx++;
+    setTimeout(tgFetchNext, 5000); // 5s gap between channels
+  };
+  xhr.onerror = xhr.ontimeout = function() {
+    tgIdx++;
+    setTimeout(tgFetchNext, 5000);
+  };
+  xhr.send();
+}
+
+function loadAllFeeds() {
+  tgPosts = [];
+  tgIdx   = 0;
+  document.getElementById('feedBadge').textContent = 'LOADING';
+  document.getElementById('feedBadge').className   = 'panel-badge';
+  document.getElementById('intelFeed').innerHTML   = '<div style="color:#4a7a8a;padding:16px 4px;text-align:center;letter-spacing:2px;font-size:9px;">◌ Loading live feed...</div>';
+  tgFetchNext();
+}
+
+loadAllFeeds();
+setInterval(loadAllFeeds, 180000);
+
+// ── 3D Interactive Globe ──────────────────────────────────────────────────
+var globeInitialized = false;
+var globeCanvas, globeCtx, globeRot, globeZoom, globeDragging, globeLastX, globeLastY;
+var globeCountries, globeD3Ready = false;
+var globeLayers = { equities: true, forex: true, events: true, conflicts: true };
+var MIN_ZOOM = 0.5, MAX_ZOOM = 8;
+var pulseFrame = 0;
+
+var GLOBE_COLORS = { land:'#0d2137', border:'#00d4ff44', ocean:'#000913', graticule:'#00d4ff0d', label:'#4a9aba' };
+
+var NAMES = {
+  4:'Afghanistan',8:'Albania',12:'Algeria',24:'Angola',32:'Argentina',36:'Australia',
+  40:'Austria',50:'Bangladesh',56:'Belgium',76:'Brazil',124:'Canada',152:'Chile',
+  156:'China',170:'Colombia',208:'Denmark',818:'Egypt',246:'Finland',250:'France',
+  276:'Germany',300:'Greece',356:'India',360:'Indonesia',364:'Iran',368:'Iraq',
+  372:'Ireland',376:'Israel',380:'Italy',392:'Japan',400:'Jordan',404:'Kenya',
+  408:'North Korea',410:'South Korea',422:'Lebanon',484:'Mexico',504:'Morocco',
+  524:'Nepal',528:'Netherlands',554:'New Zealand',566:'Nigeria',578:'Norway',
+  586:'Pakistan',604:'Peru',608:'Philippines',616:'Poland',620:'Portugal',
+  642:'Romania',643:'Russia',682:'Saudi Arabia',710:'South Africa',724:'Spain',
+  752:'Sweden',756:'Switzerland',760:'Syria',764:'Thailand',792:'Turkey',
+  800:'Uganda',804:'Ukraine',784:'UAE',826:'United Kingdom',840:'United States',
+  862:'Venezuela',704:'Vietnam',887:'Yemen',716:'Zimbabwe',304:'Greenland',
+  703:'Slovakia',706:'Somalia',729:'Sudan',144:'Sri Lanka',858:'Uruguay'
+};
+
+var EVENT_COLORS = {
+  earthquake:'#ff8c00', volcano:'#ff00ff', cyclone:'#cc44ff',
+  flood:'#0088ff', wildfire:'#ff6600', conflict:'#ff0000',
+  epidemic:'#00ff44', drought:'#ffcc00', default:'#ffffff'
+};
+
+var globalEvents = [];
+setInterval(function(){ pulseFrame++; }, 80);
+
+var CONFLICT_ZONES = [
+  {name:'Iran-Israel Conflict',lat:32.5,lon:35.5,type:'conflict',severity:'Red',source:'CONFLICT'},
+  {name:'Russia-Ukraine War',lat:49.5,lon:32.0,type:'conflict',severity:'Red',source:'CONFLICT'},
+  {name:'Gaza Strip',lat:31.35,lon:34.45,type:'conflict',severity:'Red',source:'CONFLICT'},
+  {name:'Sudan Civil War',lat:15.5,lon:32.5,type:'conflict',severity:'Red',source:'CONFLICT'},
+  {name:'Myanmar Civil War',lat:19.0,lon:96.5,type:'conflict',severity:'Orange',source:'CONFLICT'},
+  {name:'Haiti Crisis',lat:18.9,lon:-72.3,type:'conflict',severity:'Orange',source:'CONFLICT'},
+  {name:'Yemen Houthi',lat:15.5,lon:44.5,type:'conflict',severity:'Red',source:'CONFLICT'},
+  {name:'Red Sea Attacks',lat:14.0,lon:42.5,type:'conflict',severity:'Red',source:'CONFLICT'},
+  {name:'Taiwan Strait',lat:23.5,lon:119.5,type:'conflict',severity:'Orange',source:'CONFLICT'},
+  {name:'DR Congo M23',lat:-1.5,lon:29.0,type:'conflict',severity:'Orange',source:'CONFLICT'},
+  {name:'Sahel Insurgency',lat:14.5,lon:1.5,type:'conflict',severity:'Orange',source:'CONFLICT'},
+  {name:'Somalia',lat:5.0,lon:46.0,type:'conflict',severity:'Orange',source:'CONFLICT'},
+];
+globalEvents = CONFLICT_ZONES.slice();
+
+var EXCHANGES = [
+  {id:'nyse',name:'NYSE',city:'New York',lon:-74.006,lat:40.7128},
+  {id:'nasdaq',name:'NASDAQ',city:'New York',lon:-73.986,lat:40.758},
+  {id:'tsx',name:'TSX',city:'Toronto',lon:-79.383,lat:43.653},
+  {id:'lse',name:'LSE',city:'London',lon:-0.1276,lat:51.507},
+  {id:'euronext',name:'Euronext',city:'Amsterdam',lon:4.9041,lat:52.368},
+  {id:'deutsche',name:'Deutsche Börse',city:'Frankfurt',lon:8.682,lat:50.111},
+  {id:'hkex',name:'HKEX',city:'Hong Kong',lon:114.169,lat:22.319},
+  {id:'sse',name:'SSE',city:'Shanghai',lon:121.474,lat:31.230},
+  {id:'szse',name:'SZSE',city:'Shenzhen',lon:114.058,lat:22.543},
+  {id:'tse',name:'TSE',city:'Tokyo',lon:139.692,lat:35.690},
+  {id:'bse',name:'BSE/NSE',city:'Mumbai',lon:72.878,lat:19.076},
+  {id:'krx',name:'KRX',city:'Seoul',lon:126.978,lat:37.566},
+  {id:'asx',name:'ASX',city:'Sydney',lon:151.209,lat:-33.869},
+  {id:'b3',name:'B3',city:'São Paulo',lon:-46.633,lat:-23.551},
+  {id:'jse',name:'JSE',city:'Johannesburg',lon:28.047,lat:-26.204},
+  {id:'tadawul',name:'Tadawul',city:'Riyadh',lon:46.722,lat:24.714},
+  {id:'tase',name:'TASE',city:'Tel Aviv',lon:34.782,lat:32.085},
+  {id:'tehran',name:'TSE Tehran',city:'Tehran',lon:51.389,lat:35.689},
+  {id:'moex',name:'MOEX',city:'Moscow',lon:37.617,lat:55.756},
+  {id:'six',name:'SIX',city:'Zurich',lon:8.542,lat:47.377},
+  {id:'sgx',name:'SGX',city:'Singapore',lon:103.820,lat:1.352},
+  {id:'bmv',name:'BMV',city:'Mexico City',lon:-99.133,lat:19.433},
+  {id:'dfm',name:'DFM',city:'Dubai',lon:55.271,lat:25.205},
+  {id:'twse',name:'TWSE',city:'Taipei',lon:121.565,lat:25.033},
+  {id:'bist',name:'BIST',city:'Istanbul',lon:28.978,lat:41.008},
+];
+
+var FOREX = [
+  {id:'fx-gbp',label:'GBP/USD',lon:-0.1276,lat:51.3},
+  {id:'fx-eur',label:'EUR/USD',lon:10.0,lat:51.0},
+  {id:'fx-jpy',label:'USD/JPY',lon:139.692,lat:38.0},
+  {id:'fx-cny',label:'USD/CNY',lon:116.407,lat:39.9},
+  {id:'fx-cad',label:'USD/CAD',lon:-75.0,lat:45.4},
+  {id:'fx-aud',label:'AUD/USD',lon:151.209,lat:-36.0},
+  {id:'fx-inr',label:'USD/INR',lon:72.878,lat:22.0},
+  {id:'fx-brl',label:'USD/BRL',lon:-46.633,lat:-26.5},
+  {id:'fx-zar',label:'USD/ZAR',lon:28.047,lat:-29.0},
+  {id:'fx-try',label:'USD/TRY',lon:28.978,lat:39.0},
+  {id:'fx-aed',label:'USD/AED',lon:55.271,lat:23.5},
+  {id:'fx-ils',label:'USD/ILS',lon:34.782,lat:30.5},
+];
+
+var exPrices = {
+  nyse:{price:552.48,open:547.97,dec:2,vol:0.08},nasdaq:{price:471.23,open:465.93,dec:2,vol:0.10},
+  tsx:{price:31.42,open:31.49,dec:2,vol:0.04},lse:{price:1.2674,open:1.259,dec:4,vol:0.0008},
+  euronext:{price:1.0821,open:1.0775,dec:4,vol:0.0006},deutsche:{price:22847,open:22640,dec:0,vol:18},
+  hkex:{price:22341,open:22463,dec:0,vol:30},sse:{price:3312,open:3303,dec:2,vol:4},
+  szse:{price:10981,open:10943,dec:2,vol:12},tse:{price:36842,open:37000,dec:0,vol:55},
+  bse:{price:75420,open:74980,dec:0,vol:80},krx:{price:2487,open:2471,dec:2,vol:3},
+  asx:{price:8102,open:8054,dec:2,vol:8},b3:{price:127842,open:126500,dec:0,vol:200},
+  jse:{price:80341,open:79800,dec:0,vol:100},tadawul:{price:11842,open:11780,dec:2,vol:15},
+  tase:{price:2341,open:2318,dec:2,vol:4},tehran:{price:2841000,open:2820000,dec:0,vol:5000},
+  moex:{price:2947,open:2931,dec:2,vol:5},six:{price:11842,open:11790,dec:2,vol:10},
+  sgx:{price:3412,open:3398,dec:2,vol:4},bmv:{price:52841,open:52400,dec:0,vol:80},
+  dfm:{price:4284,open:4261,dec:2,vol:6},twse:{price:21842,open:21700,dec:0,vol:30},
+  bist:{price:9841,open:9780,dec:2,vol:15},
+  'fx-gbp':{price:1.2674,open:1.259,dec:4,vol:0.0006},'fx-eur':{price:1.0821,open:1.0775,dec:4,vol:0.0005},
+  'fx-jpy':{price:151.42,open:150.87,dec:2,vol:0.08},'fx-cny':{price:7.234,open:7.228,dec:4,vol:0.0015},
+  'fx-cad':{price:1.364,open:1.360,dec:4,vol:0.0008},'fx-aud':{price:0.648,open:0.645,dec:4,vol:0.0006},
+  'fx-inr':{price:83.42,open:83.28,dec:2,vol:0.05},'fx-brl':{price:5.084,open:5.062,dec:4,vol:0.003},
+  'fx-zar':{price:18.74,open:18.68,dec:4,vol:0.015},'fx-try':{price:32.84,open:32.72,dec:4,vol:0.012},
+  'fx-aed':{price:3.6725,open:3.6725,dec:4,vol:0.0001},'fx-ils':{price:3.724,open:3.718,dec:4,vol:0.002},
+};
+
+var labelsCreated = false;
+var quotesLoaded  = false;
+
+function gUpdateLabel(id) {
+  var s = exPrices[id]; if (!s) return;
+  var chg = ((s.price-s.open)/s.open)*100, up = chg>=0;
+  var pel = document.getElementById('exprice-'+id), cel = document.getElementById('exchg-'+id);
+  if (pel){ pel.textContent=s.price.toFixed(s.dec); pel.style.color=up?'#00ff88':'#ff3d3d'; pel.style.textShadow=up?'0 0 6px #00ff88':'0 0 6px #ff3d3d'; setTimeout(function(){if(pel)pel.style.textShadow='none';},400); }
+  if (cel){ cel.textContent=(up?'▲ +':'▼ ')+Math.abs(chg).toFixed(2)+'%'; cel.style.color=up?'#00ff88':'#ff3d3d'; }
+}
+
+function gCreateLabels() {
+  if (labelsCreated) return; labelsCreated = true;
+  var container = document.getElementById('exchangeLabels');
+  EXCHANGES.forEach(function(ex){
+    var div=document.createElement('div');
+    div.id='exlabel-'+ex.id;
+    div.style.cssText='position:absolute;display:none;pointer-events:none;transform:translate(-50%,-100%);text-align:center;filter:drop-shadow(0 0 6px rgba(0,0,0,0.9));z-index:5;';
+    div.innerHTML='<div style="background:rgba(0,9,19,0.92);border:1px solid rgba(0,212,255,0.4);padding:3px 6px;min-width:72px;"><div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:#00d4ff;font-family:Rajdhani,sans-serif;">'+ex.name+'</div><div style="font-size:7px;color:#4a7a8a;letter-spacing:1px;font-family:Rajdhani,sans-serif;">'+ex.city+'</div><div id="exprice-'+ex.id+'" style="font-size:10px;font-weight:700;color:#4a7a8a;font-family:\'Exo 2\',sans-serif;">--</div><div id="exchg-'+ex.id+'" style="font-size:8px;color:#4a7a8a;font-family:\'Exo 2\',sans-serif;">--</div></div><div style="width:1px;height:8px;background:#00d4ff66;margin:0 auto;"></div><div style="width:5px;height:5px;border-radius:50%;background:#00d4ff;margin:0 auto;box-shadow:0 0 6px #00d4ff;"></div>';
+    container.appendChild(div);
+  });
+  FOREX.forEach(function(fx){
+    var div=document.createElement('div');
+    div.id='exlabel-'+fx.id;
+    div.style.cssText='position:absolute;display:none;pointer-events:none;transform:translate(-50%,-100%);text-align:center;filter:drop-shadow(0 0 4px rgba(0,0,0,0.9));z-index:5;';
+    div.innerHTML='<div style="background:rgba(0,9,19,0.88);border:1px solid rgba(255,187,0,0.35);padding:2px 5px;min-width:60px;"><div style="font-size:7px;font-weight:700;letter-spacing:1px;color:#ffbb00;font-family:Rajdhani,sans-serif;">'+fx.label+'</div><div id="exprice-'+fx.id+'" style="font-size:9px;font-weight:700;color:#4a7a8a;font-family:\'Exo 2\',sans-serif;">--</div><div id="exchg-'+fx.id+'" style="font-size:7px;color:#4a7a8a;font-family:\'Exo 2\',sans-serif;">--</div></div><div style="width:1px;height:6px;background:#ffbb0066;margin:0 auto;"></div><div style="width:4px;height:4px;border-radius:50%;background:#ffbb00;margin:0 auto;box-shadow:0 0 4px #ffbb00;"></div>';
+    container.appendChild(div);
+  });
+  startQuotes();
+}
+
+function startQuotes() {
+  if (quotesLoaded) return; quotesLoaded = true;
+  Object.keys(exPrices).forEach(gUpdateLabel);
+  setInterval(function(){
+    Object.keys(exPrices).forEach(function(id){
+      var s=exPrices[id]; if(!s)return;
+      s.price=Math.max(s.price+(Math.random()-0.499)*s.vol*2, s.open*0.85);
+      gUpdateLabel(id);
+    });
+  },1500);
+  // Live TD fetch
+  var TD_KEY='cadcb99db1c44ea48c75c1f4670fa507';
+  var tdQ=[{id:'nyse',sym:'SPY',dec:2},{id:'nasdaq',sym:'QQQ',dec:2},{id:'fx-gbp',sym:'GBP/USD',dec:4},{id:'fx-eur',sym:'EUR/USD',dec:4},{id:'fx-jpy',sym:'USD/JPY',dec:2}];
+  var tdi=0;
+  function tdNext(){
+    if(tdi>=tdQ.length){tdi=0;return;}
+    var s=tdQ[tdi++];
+    var xhr=new XMLHttpRequest(); xhr.open('GET','https://api.twelvedata.com/quote?symbol='+encodeURIComponent(s.sym)+'&apikey='+TD_KEY,true); xhr.timeout=6000;
+    xhr.onload=function(){ try{var d=JSON.parse(xhr.responseText);if(!d.close)return;exPrices[s.id].price=parseFloat(d.close);exPrices[s.id].open=parseFloat(d.previous_close||d.close);gUpdateLabel(s.id);}catch(e){} setTimeout(tdNext,2000); };
+    xhr.onerror=xhr.ontimeout=function(){ setTimeout(tdNext,2000); };
+    xhr.send();
+  }
+  setTimeout(tdNext,1000);
+  setInterval(function(){tdi=0;tdNext();},60000);
+}
+
+window.toggleLayer = function(layer) {
+  globeLayers[layer]=!globeLayers[layer];
+  var on=globeLayers[layer];
+  var btn=document.getElementById('toggle-'+layer);
+  if(!btn)return;
+  var labels={equities:'📈 EQUITIES',forex:'💱 FOREX',events:'⚠ DISASTERS',conflicts:'⚔ CONFLICTS'};
+  var colors={equities:'rgba(0,212,255,0.6)',forex:'rgba(255,187,0,0.6)',events:'rgba(255,140,0,0.6)',conflicts:'rgba(255,61,61,0.6)'};
+  var textCol={equities:'#00d4ff',forex:'#ffbb00',events:'#ff8c00',conflicts:'#ff3d3d'};
+  btn.textContent=labels[layer]+(on?' ON':' OFF');
+  btn.style.borderColor=on?colors[layer]:'rgba(74,122,138,0.4)';
+  btn.style.color=on?textCol[layer]:'#4a7a8a';
+  btn.style.opacity=on?'1':'0.5';
+  gDrawGlobe();
+};
+
+function gPositionLabels(proj) {
+  var allItems = (globeLayers.equities ? EXCHANGES : []).concat(globeLayers.forex ? FOREX : []);
+  var allHidden = (globeLayers.equities ? [] : EXCHANGES).concat(globeLayers.forex ? [] : FOREX);
+  allHidden.forEach(function(item){ var el=document.getElementById('exlabel-'+item.id); if(el) el.style.display='none'; });
+  allItems.forEach(function(item){
+    var el=document.getElementById('exlabel-'+item.id); if(!el)return;
+    var pt=proj([item.lon,item.lat]); if(!pt){el.style.display='none';return;}
+    var vis=window._d3.geoDistance([item.lon,item.lat],[-globeRot[0],-globeRot[1]])<Math.PI/2;
+    if(!vis){el.style.display='none';return;}
+    el.style.display='block'; el.style.left=pt[0]+'px'; el.style.top=pt[1]+'px';
+  });
+}
+
+function gDrawEvents(proj) {
+  var pulse=Math.sin(pulseFrame*0.3)*0.5+0.5;
+  globalEvents.forEach(function(ev){
+    // Respect separate toggles
+    var isConflict = ev.type==='conflict';
+    if(isConflict && !globeLayers.conflicts) return;
+    if(!isConflict && !globeLayers.events) return;
+
+    var pt=proj([ev.lon,ev.lat]); if(!pt)return;
+    var vis=window._d3.geoDistance([ev.lon,ev.lat],[-globeRot[0],-globeRot[1]])<Math.PI/2;
+    if(!vis)return;
+    var col=EVENT_COLORS[ev.type]||EVENT_COLORS.default;
+    var r=ev.severity==='Red'?6:ev.severity==='Orange'?5:4;
+
+    // Pulsing ring
+    globeCtx.beginPath(); globeCtx.arc(pt[0],pt[1],r+4+pulse*5,0,Math.PI*2);
+    globeCtx.strokeStyle=col+'44'; globeCtx.lineWidth=1.5; globeCtx.stroke();
+    // Solid dot
+    globeCtx.beginPath(); globeCtx.arc(pt[0],pt[1],r,0,Math.PI*2);
+    globeCtx.fillStyle=col; globeCtx.fill();
+
+    // Label — bigger font, include UTC time for disasters
+    globeCtx.fillStyle=col;
+    globeCtx.font='bold 10px Rajdhani,sans-serif';
+    globeCtx.textAlign='left';
+    var label = ev.name.substring(0,32);
+    // Add UTC time for natural disasters (not conflicts)
+    if(!isConflict && ev.utcTime) {
+      label += '  ' + ev.utcTime + ' UTC';
+    }
+    // Shadow for readability
+    globeCtx.shadowColor='rgba(0,0,0,0.9)';
+    globeCtx.shadowBlur=4;
+    globeCtx.fillText(label, pt[0]+r+4, pt[1]+4);
+    globeCtx.shadowBlur=0;
+  });
+}
+
+function gDrawGlobe() {
+  if(!globeCountries||!window._d3)return;
+  var d3=window._d3;
+  var W=globeCanvas.width, H=globeCanvas.height;
+  var radius=Math.min(W,H)*0.42*globeZoom;
+  var proj=d3.geoOrthographic().scale(radius).translate([W/2,H/2]).rotate(globeRot).clipAngle(90);
+  var path=d3.geoPath(proj,globeCtx);
+  globeCtx.clearRect(0,0,W,H);
+  // Ocean
+  globeCtx.beginPath(); path({type:'Sphere'}); globeCtx.fillStyle=GLOBE_COLORS.ocean; globeCtx.fill();
+  // Glow
+  var grd=globeCtx.createRadialGradient(W/2-radius*0.3,H/2-radius*0.3,radius*0.1,W/2,H/2,radius);
+  grd.addColorStop(0,'rgba(0,212,255,0.06)'); grd.addColorStop(1,'rgba(0,100,160,0.15)');
+  globeCtx.beginPath(); path({type:'Sphere'}); globeCtx.fillStyle=grd; globeCtx.fill();
+  // Graticule
+  globeCtx.beginPath(); path(d3.geoGraticule()()); globeCtx.strokeStyle=GLOBE_COLORS.graticule; globeCtx.lineWidth=0.5; globeCtx.stroke();
+  // Countries
+  globeCountries.features.forEach(function(f){
+    globeCtx.beginPath(); path(f); globeCtx.fillStyle=GLOBE_COLORS.land; globeCtx.fill();
+    globeCtx.strokeStyle=GLOBE_COLORS.border; globeCtx.lineWidth=0.6; globeCtx.stroke();
+  });
+  // Country labels
+  if(globeZoom>=1.2){
+    globeCtx.font='bold '+Math.min(11,7*globeZoom)+'px Rajdhani,sans-serif';
+    globeCtx.fillStyle=GLOBE_COLORS.label; globeCtx.textAlign='center'; globeCtx.textBaseline='middle';
+    globeCountries.features.forEach(function(f){
+      var name=NAMES[parseInt(f.id)]||''; if(!name)return;
+      var c=d3.geoCentroid(f), v=proj(c); if(!v)return;
+      if(v[0]<20||v[0]>W-20||v[1]<20||v[1]>H-20)return;
+      globeCtx.fillText(name,v[0],v[1]);
+    });
+  }
+  // Outline
+  globeCtx.beginPath(); path({type:'Sphere'}); globeCtx.strokeStyle='#00d4ff33'; globeCtx.lineWidth=1; globeCtx.stroke();
+  // Events
+  gDrawEvents(proj);
+  // Labels
+  gPositionLabels(proj);
+}
+
+function closeDisasterPopup() {
+  document.getElementById('disasterPopup').style.display = 'none';
+}
+
+function handleGlobeClick(e) {
+  if (!globeCountries || !window._d3) return;
+  var d3 = window._d3;
+  var panel = document.getElementById('globePanel');
+  var rect  = panel.getBoundingClientRect();
+  var mx = e.clientX - rect.left;
+  var my = e.clientY - rect.top;
+
+  var W = globeCanvas.width, H = globeCanvas.height;
+  var radius = Math.min(W,H)*0.42*globeZoom;
+  var proj = d3.geoOrthographic().scale(radius).translate([W/2,H/2]).rotate(globeRot).clipAngle(90);
+
+  // Find nearest event (disasters AND conflicts) within 18px
+  var best = null, bestDist = 18;
+  globalEvents.forEach(function(ev) {
+    var pt = proj([ev.lon, ev.lat]); if(!pt) return;
+    var vis = d3.geoDistance([ev.lon,ev.lat],[-globeRot[0],-globeRot[1]]) < Math.PI/2;
+    if(!vis) return;
+    var dx = pt[0]-mx, dy = pt[1]-my;
+    var dist = Math.sqrt(dx*dx+dy*dy);
+    if(dist < bestDist) { bestDist=dist; best=ev; }
+  });
+
+  if (!best) { closeDisasterPopup(); return; }
+
+  // Show popup at click position
+  var popup = document.getElementById('disasterPopup');
+  var col = EVENT_COLORS[best.type] || '#ff8c00';
+  popup.querySelector('div').style.borderColor = col;
+  document.getElementById('popupType').style.color = col;
+  document.getElementById('popupType').textContent = (best.type==='conflict' ? '⚔ CONFLICT' : '⚠ ' + best.type.toUpperCase()) + ' · ' + best.severity.toUpperCase();
+  document.getElementById('popupName').textContent = best.name;
+  document.getElementById('popupTime').textContent = best.utcTime ? best.utcTime + ' UTC' : (best.type==='conflict' ? 'Active conflict zone' : '');
+  document.getElementById('popupBody').innerHTML = '<span style="color:#4a7a8a;font-size:9px;letter-spacing:1px;">🔍 Searching live sources...</span>';
+  document.getElementById('popupSource').textContent = '';
+
+  // Position popup near click, keep within panel
+  var px = Math.min(mx, W - 300);
+  var py = Math.max(my - 180, 10);
+  popup.style.left = px + 'px';
+  popup.style.top  = py + 'px';
+  popup.style.display = 'block';
+
+  // Fetch Claude summary
+  fetchDisasterSummary(best);
+}
+
+function fetchDisasterSummary(ev) {
+  var isConflict = ev.type === 'conflict';
+
+  var prompt = isConflict
+    ? 'Search the web for the most recent accurate news about this conflict: "' + ev.name + '". ' +
+      'Using only confirmed sources (Reuters, AP, BBC, official government statements, military announcements), provide: ' +
+      'SENTENCE 1: A one-sentence background overview of this conflict (who is fighting, why, when it started). ' +
+      'SENTENCE 2-3: The most recent confirmed developments from the last 48-72 hours — troop movements, casualties, diplomatic talks, ceasefire updates, or escalations. ' +
+      'Only state confirmed facts. If no recent updates exist, say so. No speculation.'
+    : 'Search the web for the most recent accurate news about this disaster: ' +
+      ev.type.toUpperCase() + ' — "' + ev.name + '"' +
+      (ev.utcTime ? ' (occurred ' + ev.utcTime + ' UTC)' : '') + '. ' +
+      'Find real reports from official sources (USGS, GDACS, government agencies, Reuters, AP) published today or in the last 48 hours. ' +
+      'Provide 3 sentences covering: ' +
+      '(1) what happened and exact location, ' +
+      '(2) confirmed casualties, damage or impact if known, ' +
+      '(3) current status and official response. ' +
+      'Only state confirmed facts from your search. If no specific results found, say so clearly.';
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{ role: 'user', content: prompt }]
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data) {
+    var text = '';
+    if (data.content && Array.isArray(data.content)) {
+      data.content.forEach(function(block) {
+        if (block.type === 'text' && block.text) text += block.text;
+      });
+    }
+    if (!text) text = 'No confirmed reports found. Check ' + (isConflict ? 'Reuters or BBC' : 'gdacs.org or earthquake.usgs.gov') + ' directly.';
+    document.getElementById('popupBody').textContent = text.trim();
+    document.getElementById('popupSource').textContent = '🔍 Live web search · ' + (ev.source||'') + (ev.utcTime ? ' · ' + ev.utcTime + ' UTC' : '');
+  })
+  .catch(function() {
+    document.getElementById('popupBody').textContent = 'Summary unavailable from local file — upload to Netlify for live web search.';
+    document.getElementById('popupSource').textContent = 'Source: ' + (ev.source || 'Curated');
+  });
+}
+
+function initGlobe() {
+  if(globeInitialized)return;
+  globeInitialized=true;
+
+  globeCanvas = document.getElementById('globeCanvas');
+  var container = document.getElementById('globePanel');
+
+  function resize(){
+    var w=container.offsetWidth||800, h=container.offsetHeight||600;
+    globeCanvas.width=w; globeCanvas.height=h;
+  }
+  resize();
+  window.addEventListener('resize',function(){resize();gDrawGlobe();});
+
+  globeCtx  = globeCanvas.getContext('2d');
+  globeRot  = [0,-20];
+  globeZoom = 1.0;
+  globeDragging = false;
+
+  // Mouse
+  globeCanvas.addEventListener('mousedown',function(e){globeDragging=true;globeLastX=e.clientX;globeLastY=e.clientY;globeCanvas.style.cursor='grabbing';});
+  window.addEventListener('mouseup',function(e){
+    // Only fire click if mouse didn't move (not a drag)
+    if(globeDragging && Math.abs(e.clientX-globeLastX)<4 && Math.abs(e.clientY-globeLastY)<4){
+      handleGlobeClick(e);
+    }
+    globeDragging=false; globeCanvas.style.cursor='grab';
+  });
+  window.addEventListener('mousemove',function(e){
+    if(!globeDragging)return;
+    globeRot[0]+=(e.clientX-globeLastX)*(0.3/globeZoom);
+    globeRot[1]-=(e.clientY-globeLastY)*(0.3/globeZoom);
+    globeRot[1]=Math.max(-90,Math.min(90,globeRot[1]));
+    globeLastX=e.clientX;globeLastY=e.clientY;gDrawGlobe();
+  });
+  // Touch
+  globeCanvas.addEventListener('touchstart',function(e){if(e.touches.length===1){globeDragging=true;globeLastX=e.touches[0].clientX;globeLastY=e.touches[0].clientY;}},{passive:true});
+  globeCanvas.addEventListener('touchmove',function(e){
+    if(!globeDragging||e.touches.length!==1)return;
+    globeRot[0]+=(e.touches[0].clientX-globeLastX)*(0.3/globeZoom);
+    globeRot[1]-=(e.touches[0].clientY-globeLastY)*(0.3/globeZoom);
+    globeRot[1]=Math.max(-90,Math.min(90,globeRot[1]));
+    globeLastX=e.touches[0].clientX;globeLastY=e.touches[0].clientY;gDrawGlobe();
+  },{passive:true});
+  globeCanvas.addEventListener('touchend',function(){globeDragging=false;},{passive:true});
+  // Zoom
+  globeCanvas.addEventListener('wheel',function(e){
+    e.preventDefault();
+    globeZoom*=e.deltaY<0?1.12:0.89;
+    globeZoom=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,globeZoom));
+    gDrawGlobe();
+  },{passive:false});
+  // Auto-rotate
+  setInterval(function(){
+    if(!globeDragging&&curTab==='globe3d'){globeRot[0]+=0.1;gDrawGlobe();}
+  },30);
+
+  // Load D3 → TopoJSON → world data
+  var sd=document.createElement('script');
+  sd.src='https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js';
+  sd.onload=function(){
+    window._d3=d3;
+    var st=document.createElement('script');
+    st.src='https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js';
+    st.onload=function(){
+      var xhr=new XMLHttpRequest();
+      xhr.open('GET','https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json',true);
+      xhr.timeout=15000;
+      xhr.onload=function(){
+        try{
+          var world=JSON.parse(xhr.responseText);
+          globeCountries=topojson.feature(world,world.objects.countries);
+          resize(); gDrawGlobe(); gCreateLabels();
+          // Fetch live events
+          fetchGDACS(); fetchUSGS();
+          setInterval(fetchGDACS,600000); setInterval(fetchUSGS,600000);
+        }catch(e){console.error('Globe init error:',e);}
+      };
+      xhr.onerror=xhr.ontimeout=function(){console.error('World data fetch failed');};
+      xhr.send();
+    };
+    document.head.appendChild(st);
+  };
+  sd.onerror=function(){console.error('D3 failed to load');};
+  document.head.appendChild(sd);
+}
+
+function updateGlobeStatus() {
+  var el = document.getElementById('globeDataStatus');
+  if (!el) return;
+  var gdacs = globalEvents.filter(function(e){ return e.source==='GDACS'; }).length;
+  var usgs  = globalEvents.filter(function(e){ return e.source==='USGS';  }).length;
+  var now   = new Date();
+  var utc   = now.getUTCHours().toString().padStart(2,'0')+':'+now.getUTCMinutes().toString().padStart(2,'0')+' UTC';
+  if (gdacs===0 && usgs===0) {
+    el.innerHTML = '<span style="color:#ff3d3d;">⚠ Disaster data unavailable — host on Netlify for live data</span>';
+  } else {
+    el.innerHTML = '<span style="color:#00ff88;">✓ GDACS: '+gdacs+' events · USGS: '+usgs+' earthquakes · '+utc+'</span>';
+  }
+}
+
+function fetchGDACS(){
+  var url='https://api.allorigins.win/raw?url='+encodeURIComponent('https://www.gdacs.org/xml/rss.xml');
+  var xhr=new XMLHttpRequest(); xhr.open('GET',url,true); xhr.timeout=15000;
+  xhr.onload=function(){
+    if(xhr.status!==200){ updateGlobeStatus(); return; }
+    var events=[]; var items=xhr.responseText.split('<item>');
+    for(var i=1;i<items.length;i++){
+      var item=items[i];
+      var title=((item.match(/<title>([\s\S]*?)<\/title>/)||[])[1]||'').replace(/<[^>]+>/g,'').trim();
+      var lat=parseFloat((item.match(/<geo:lat>([\s\S]*?)<\/geo:lat>/)||[])[1]);
+      var lon=parseFloat((item.match(/<geo:long>([\s\S]*?)<\/geo:long>/)||[])[1]);
+      var evtype=((item.match(/<gdacs:eventtype>([\s\S]*?)<\/gdacs:eventtype>/)||[])[1]||'').trim().toLowerCase();
+      var alert=((item.match(/<gdacs:alertlevel>([\s\S]*?)<\/gdacs:alertlevel>/)||[])[1]||'Green').trim();
+      var pubRaw=((item.match(/<pubDate>([\s\S]*?)<\/pubDate>/)||[])[1]||'').trim();
+      if(isNaN(lat)||isNaN(lon))continue;
+      var type=evtype==='eq'?'earthquake':evtype==='tc'?'cyclone':evtype==='fl'?'flood':evtype==='vo'?'volcano':evtype==='wf'?'wildfire':evtype==='dr'?'drought':'default';
+      var utcTime='';
+      if(pubRaw){try{var d=new Date(pubRaw);if(!isNaN(d.getTime())){utcTime=d.getUTCFullYear()+'/'+(d.getUTCMonth()+1).toString().padStart(2,'0')+'/'+d.getUTCDate().toString().padStart(2,'0')+' '+d.getUTCHours().toString().padStart(2,'0')+':'+d.getUTCMinutes().toString().padStart(2,'0');}}catch(e){}}
+      events.push({name:title,lat:lat,lon:lon,type:type,severity:alert,source:'GDACS',utcTime:utcTime});
+    }
+    globalEvents=globalEvents.filter(function(e){return e.source!=='GDACS';}).concat(events);
+    updateGlobeStatus();
+  };
+  xhr.onerror=xhr.ontimeout=function(){ updateGlobeStatus(); };
+  xhr.send();
+}
+
+function fetchUSGS(){
+  var url='https://api.allorigins.win/raw?url='+encodeURIComponent('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson');
+  var xhr=new XMLHttpRequest(); xhr.open('GET',url,true); xhr.timeout=15000;
+  xhr.onload=function(){
+    if(xhr.status!==200){ updateGlobeStatus(); return; }
+    try{
+      var data=JSON.parse(xhr.responseText);
+      var events=(data.features||[]).map(function(f){
+        var mag=f.properties.mag;
+        var d=new Date(f.properties.time);
+        var utcTime=d.getUTCFullYear()+'/'+(d.getUTCMonth()+1).toString().padStart(2,'0')+'/'+d.getUTCDate().toString().padStart(2,'0')+' '+d.getUTCHours().toString().padStart(2,'0')+':'+d.getUTCMinutes().toString().padStart(2,'0');
+        return{name:'M'+mag.toFixed(1)+' '+(f.properties.place||''),lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0],type:'earthquake',severity:mag>=7?'Red':mag>=6?'Orange':'Green',source:'USGS',utcTime:utcTime};
+      });
+      globalEvents=globalEvents.filter(function(e){return e.source!=='USGS';}).concat(events);
+    }catch(e){}
+    updateGlobeStatus();
+  };
+  xhr.onerror=xhr.ontimeout=function(){ updateGlobeStatus(); };
+  xhr.send();
+}
+
+function switchTab(name){
+  if(name===curTab)return; curTab=name;
+  MAPTABS.forEach(function(t){document.getElementById('tab-'+t).classList.toggle('active',t===name);});
+
+  var globePanel = document.getElementById('globePanel');
+
+  if (name === 'globe3d') {
+    // Show globe, hide iframe
+    frame.src = 'about:blank';
+    frame.style.display = 'none';
+    globePanel.style.display = 'block';
+    loading.classList.remove('show');
+    initGlobe();
+    return;
+  }
+
+  // Hide globe, show iframe
+  globePanel.style.display = 'none';
+  frame.style.display = 'block';
+  loadingName.textContent=LABELS[name];
+  loading.classList.add('show');
+  frame.src='about:blank';
+  setTimeout(function(){frame.src=URLS[name];},80);
+  frame.onload=function(){loading.classList.remove('show');frame.onload=null;};
+  setTimeout(function(){loading.classList.remove('show');},12000);
+}
+</script>
+</body>
+</html>
