@@ -3203,7 +3203,7 @@ switchPage = function(p) {
     setTimeout(loadEconCalendar, 300);
     setTimeout(loadEarnings,     500);
     /* Always render what we have immediately */
-    setTimeout(renderFearGreed,   100);
+    setTimeout(fetchFearGreed,    100);
     setTimeout(renderSentiment,   150);
     /* Load yield curve fresh each visit */
     setTimeout(renderYieldCurve,  200);
@@ -3260,8 +3260,13 @@ function renderYieldCurve() {
       try {
         if (xhr.status === 200 && xhr.responseText.length > 50) {
           var lines = xhr.responseText.trim().split('\n');
+          /* FRED CSV: header row then DATE,VALUE — skip header, scan from bottom for last valid value */
           for (var i = lines.length-1; i >= 1; i--) {
-            var val = parseFloat(lines[i].split(',')[1]);
+            var parts = lines[i].split(',');
+            if (parts.length < 2) continue;
+            var raw = parts[1].trim();
+            if (raw === '.' || raw === '') continue; /* FRED uses '.' for missing */
+            var val = parseFloat(raw);
             if (!isNaN(val) && val > 0) { results[tenor.id] = val; break; }
           }
         }
@@ -3286,34 +3291,51 @@ function drawYieldCurve(tenors, results) {
   var signal = document.getElementById('yc-signal');
   if (!body) return;
 
-  var values = tenors.map(function(t){ return results[t.id] || 0; });
-  var maxVal = Math.max.apply(null, values) || 5;
-  var spread = (results['DGS10'] || 0) - (results['DGS2'] || 0);
-  var inverted = spread < 0;
+  var hasAny = tenors.some(function(t){ return results[t.id] > 0; });
+
+  if (!hasAny) {
+    badge.textContent = 'ERROR';
+    badge.className   = 'badge dim';
+    body.innerHTML    = '<div style="color:#4a7a8a;font-size:8px;text-align:center;padding:8px;">FRED data unavailable — retrying in 60s</div>';
+    signal.innerHTML  = '';
+    /* Retry after 60s */
+    setTimeout(renderYieldCurve, 60000);
+    return;
+  }
+
+  var values   = tenors.map(function(t){ return results[t.id] || 0; });
+  var maxVal   = Math.max.apply(null, values) || 5;
+  var dgs10    = results['DGS10'] || 0;
+  var dgs2     = results['DGS2']  || 0;
+  var spread   = dgs10 - dgs2;
+  var inverted = dgs10 > 0 && dgs2 > 0 && spread < 0;
 
   badge.textContent = 'FRED';
   badge.className   = 'badge live';
 
   body.innerHTML = tenors.map(function(t, i) {
-    var val  = results[t.id];
-    var pct  = val ? (val / maxVal * 100) : 0;
-    var col  = inverted && i < 2 ? '#ff4455' : '#00d4ff';
+    var val = results[t.id];
+    var pct = val ? Math.max(4, (val / maxVal * 100)) : 0;
+    var col = (inverted && i < 2) ? '#ff4455' : '#00d4ff';
     return '<div style="display:flex;align-items:center;gap:6px;">' +
       '<span style="font-size:8px;color:#4a7a8a;width:22px;text-align:right;flex-shrink:0;">' + t.label + '</span>' +
       '<div style="flex:1;height:10px;background:#000d1a;border-radius:2px;overflow:hidden;">' +
-        '<div style="height:100%;width:' + pct + '%;background:' + col + ';border-radius:2px;transition:width 0.6s;"></div>' +
+        '<div style="height:100%;width:' + pct + '%;background:' + col + ';border-radius:2px;transition:width 0.8s;"></div>' +
       '</div>' +
-      '<span style="font-size:9px;font-weight:700;color:' + col + ';width:32px;text-align:right;flex-shrink:0;">' + (val ? val.toFixed(2) + '%' : '--') + '</span>' +
+      '<span style="font-size:9px;font-weight:700;color:' + col + ';width:36px;text-align:right;flex-shrink:0;">' +
+        (val ? val.toFixed(2) + '%' : '--') +
+      '</span>' +
     '</div>';
   }).join('');
 
   var spreadColor = inverted ? '#ff4455' : '#00ff88';
-  var spreadLabel = inverted ? 'INVERTED ⚠' : 'NORMAL';
-  signal.innerHTML = '10Y-2Y Spread: <span style="color:' + spreadColor + ';font-weight:700;">' +
-    (spread >= 0 ? '+' : '') + spread.toFixed(2) + '% — ' + spreadLabel + '</span>';
+  var spreadLabel = inverted ? '⚠ INVERTED' : 'NORMAL';
+  signal.innerHTML = dgs10 && dgs2
+    ? '10Y-2Y: <span style="color:' + spreadColor + ';font-weight:700;">' +
+      (spread >= 0 ? '+' : '') + spread.toFixed(2) + '% — ' + spreadLabel + '</span>'
+    : '<span style="color:#4a7a8a;">Spread unavailable</span>';
 
-  /* Update realPrices.spread for macro stack */
-  if (!isNaN(spread)) realPrices.spread = spread;
+  if (!isNaN(spread) && dgs10 && dgs2) realPrices.spread = spread;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -3321,25 +3343,86 @@ function drawYieldCurve(tenors, results) {
    Composite of: VIX proxy, Gold/SPY ratio, BTC momentum,
    DXY move, yield spread
 ───────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────
+   FEAR & GREED — fetches REAL CNN Fear & Greed Index
+   Primary: feargreedchart.com (free, no key, CORS enabled)
+   Fallback: CNN production endpoint via proxy
+───────────────────────────────────────────────────────────── */
+var fgScore = null;
+
+function fetchFearGreed() {
+  /* Try feargreedchart.com first — free, no key, CORS enabled */
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', 'https://feargreedchart.com/api/?action=current', true);
+  xhr.timeout = 10000;
+  xhr.onload = function() {
+    try {
+      if (xhr.status === 200) {
+        var d = JSON.parse(xhr.responseText);
+        /* Response: { score: { score: 45, ... } } */
+        var val = d.score && d.score.score != null ? d.score.score :
+                  d.value != null ? d.value : null;
+        if (val !== null && !isNaN(val)) {
+          fgScore = parseFloat(val);
+          renderFearGreed();
+          return;
+        }
+      }
+    } catch(e) {}
+    fetchFearGreedFallback();
+  };
+  xhr.onerror = xhr.ontimeout = fetchFearGreedFallback;
+  xhr.send();
+}
+
+function fetchFearGreedFallback() {
+  /* CNN production endpoint via allorigins proxy */
+  var url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(
+    'https://production.dataviz.cnn.io/index/fearandgreed/graphdata'
+  );
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 12000;
+  xhr.onload = function() {
+    try {
+      if (xhr.status === 200) {
+        var d = JSON.parse(xhr.responseText);
+        /* CNN response: { fear_and_greed: { score: 45.2, ... } } */
+        var val = d.fear_and_greed && d.fear_and_greed.score != null
+                  ? d.fear_and_greed.score : null;
+        if (val !== null && !isNaN(val)) {
+          fgScore = parseFloat(val);
+          renderFearGreed();
+          return;
+        }
+      }
+    } catch(e) {}
+    /* Both failed — keep showing -- */
+    renderFearGreed();
+  };
+  xhr.onerror = xhr.ontimeout = function(){ renderFearGreed(); };
+  xhr.send();
+}
+
 function renderFearGreed() {
-  var score = calcFearGreed();
   var el    = document.getElementById('fg-score');
   var lbl   = document.getElementById('fg-label');
   var ndl   = document.getElementById('fg-needle');
   var badge = document.getElementById('fg-badge');
   if (!el) return;
 
-  if (score === null) {
+  if (fgScore === null) {
     el.textContent  = '--';
     el.style.color  = '#4a7a8a';
-    lbl.textContent = 'AWAITING PRICES';
+    lbl.textContent = 'LOADING...';
     lbl.style.color = '#4a7a8a';
     if (badge) { badge.textContent = 'LOADING'; badge.className = 'badge dim'; }
     return;
   }
 
-  el.textContent = Math.round(score);
-  if (badge) { badge.textContent = 'LIVE'; badge.className = 'badge live'; }
+  var score = Math.round(fgScore);
+  el.textContent = score;
+  if (badge) { badge.textContent = 'CNN'; badge.className = 'badge live'; }
 
   var label, color;
   if      (score < 20) { label = 'EXTREME FEAR';  color = '#ff2222'; }
@@ -3354,79 +3437,61 @@ function renderFearGreed() {
   if (ndl) ndl.style.left = score + '%';
 }
 
-function calcFearGreed() {
-  if (!realPricesReady) return null;
-  var p = realPrices;
-  var scores = [];
-
-  /* VIX proxy — high VIX = fear (invert) */
-  if (p.vixy !== null) {
-    var vixScore = Math.max(0, Math.min(100, 50 - p.vixy * 5));
-    scores.push(vixScore);
-  }
-  /* SPY momentum — up = greed, down = fear */
-  if (p.spy !== null) {
-    var spyScore = Math.max(0, Math.min(100, 50 + p.spy * 10));
-    scores.push(spyScore);
-  }
-  /* Gold move — gold up = fear */
-  if (p.gold !== null) {
-    var goldScore = Math.max(0, Math.min(100, 50 - p.gold * 8));
-    scores.push(goldScore);
-  }
-  /* DXY — dollar up = fear */
-  if (p.uup !== null) {
-    var dxyScore = Math.max(0, Math.min(100, 50 - p.uup * 10));
-    scores.push(dxyScore);
-  }
-  /* BTC momentum — up = greed */
-  if (p.btc !== null) {
-    var btcScore = Math.max(0, Math.min(100, 50 + p.btc * 3));
-    scores.push(btcScore);
-  }
-  /* Yield spread — inverted = fear */
-  if (p.spread !== null) {
-    var spreadScore = Math.max(0, Math.min(100, 50 + p.spread * 15));
-    scores.push(spreadScore);
-  }
-
-  if (!scores.length) return null;
-  return scores.reduce(function(a,b){ return a+b; }, 0) / scores.length;
-}
-
 /* ─────────────────────────────────────────────────────────────
    SENTIMENT GAUGES — keyword scoring from Telegram posts
-   Assets: BTC, Gold, SPY, Oil, EUR/USD
+   Single-word keywords only — multi-word phrases never match
 ───────────────────────────────────────────────────────────── */
 var SENT_ASSETS = [
-  { id:'btc',  label:'BTC',     bull:['bitcoin','crypto','btc','rally','moon','etf','buy'], bear:['crash','dump','hack','ban','sell','plunge'] },
-  { id:'gold', label:'GOLD',    bull:['gold','safe haven','xau','bullion','record','surge'], bear:['gold falls','gold drops','gold down','selling gold'] },
-  { id:'spy',  label:'SPY',     bull:['rally','bull','stocks up','market up','growth','buy'],  bear:['crash','selloff','bear','recession','plunge','sell'] },
-  { id:'oil',  label:'WTI OIL', bull:['oil rally','crude up','opec cut','supply cut','demand'], bear:['oil falls','crude down','demand weak','oversupply','glut'] },
-  { id:'eur',  label:'EUR/USD', bull:['euro rally','eur up','ecb hawkish','eurozone growth'],  bear:['euro falls','eur down','ecb dovish','eurozone crisis'] }
+  {
+    id:'btc',  label:'BTC / CRYPTO',
+    bull:['bitcoin','btc','crypto','rally','bullish','breakout','etf','surge','moon','accumulate','buy'],
+    bear:['crash','dump','bearish','hack','ban','sell','plunge','collapse','fraud','fear','liquidation']
+  },
+  {
+    id:'gold', label:'GOLD',
+    bull:['gold','xau','bullion','surge','rally','safe','haven','record','breakout','up'],
+    bear:['gold','selloff','declining','falling','weak','drop','lower','correction','dump']
+    /* Note: gold appears in both — net score matters */
+  },
+  {
+    id:'spy',  label:'EQUITIES / SPY',
+    bull:['rally','bullish','breakout','growth','rebound','buy','surge','gains','recovery','risk'],
+    bear:['selloff','bearish','recession','crash','plunge','decline','risk','fear','correction','dump']
+  },
+  {
+    id:'oil',  label:'OIL / ENERGY',
+    bull:['opec','crude','rally','supply','cut','demand','energy','surge','bullish'],
+    bear:['oversupply','glut','demand','weak','falling','drop','bearish','recession','cut']
+  },
+  {
+    id:'eur',  label:'EUR / USD',
+    bull:['euro','ecb','hawkish','strong','rally','europe','growth','bullish'],
+    bear:['euro','dovish','weak','crisis','inflation','recession','bearish','drop']
+  }
 ];
 
 function calcSentiment() {
-  /* Score each asset from recent Telegram posts */
   var scores = {};
   SENT_ASSETS.forEach(function(a){ scores[a.id] = 0; });
 
-  if (!tgPosts.length) return scores;
-
-  /* Only use posts from last 2 hours */
-  var cutoff = Date.now() - 2*60*60*1000;
+  /* Scan last 6 hours of Telegram posts (wider window = more signal) */
+  var cutoff = Date.now() - 6*60*60*1000;
   var recent = tgPosts.filter(function(p){ return p.ts > cutoff; });
 
   recent.forEach(function(post) {
     var txt = post.text.toLowerCase();
     SENT_ASSETS.forEach(function(a) {
-      a.bull.forEach(function(w){ if (txt.indexOf(w) > -1) scores[a.id] += 1; });
-      a.bear.forEach(function(w){ if (txt.indexOf(w) > -1) scores[a.id] -= 1; });
+      var bullHits = 0, bearHits = 0;
+      a.bull.forEach(function(w){ if (txt.indexOf(w) > -1) bullHits++; });
+      a.bear.forEach(function(w){ if (txt.indexOf(w) > -1) bearHits++; });
+      /* Weight: each post can contribute max ±2 to avoid one post dominating */
+      if (bullHits > bearHits) scores[a.id] += Math.min(2, bullHits - bearHits);
+      else if (bearHits > bullHits) scores[a.id] -= Math.min(2, bearHits - bullHits);
     });
   });
 
-  /* Normalize to -10 to +10 */
-  Object.keys(scores).forEach(function(k) {
+  /* Clamp to -10..+10 */
+  Object.keys(scores).forEach(function(k){
     scores[k] = Math.max(-10, Math.min(10, scores[k]));
   });
   return scores;
@@ -3462,11 +3527,11 @@ function renderSentiment() {
   }).join('');
 }
 
-/* Refresh sentiment every 30s when on RECON page */
+/* Refresh sentiment and fear & greed every 30s when on RECON page */
 setInterval(function() {
   if (currentPage === 'recon') {
     renderSentiment();
-    renderFearGreed();
+    fetchFearGreed();
   }
 }, 30000);
 
