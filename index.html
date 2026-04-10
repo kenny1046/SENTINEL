@@ -3202,12 +3202,11 @@ switchPage = function(p) {
   if (p === 'recon') {
     setTimeout(loadEconCalendar, 300);
     setTimeout(loadEarnings,     500);
-    if (!reconPanelsLoaded) {
-      reconPanelsLoaded = true;
-      setTimeout(renderYieldCurve,  200);
-      setTimeout(renderFearGreed,   400);
-      setTimeout(renderSentiment,   600);
-    }
+    /* Always render what we have immediately */
+    setTimeout(renderFearGreed,   100);
+    setTimeout(renderSentiment,   150);
+    /* Load yield curve fresh each visit */
+    setTimeout(renderYieldCurve,  200);
   }
 };
 
@@ -3215,12 +3214,24 @@ switchPage = function(p) {
    YIELD CURVE — uses FRED data already fetched
 ───────────────────────────────────────────────────────────── */
 function renderYieldCurve() {
-  var badge = document.getElementById('yc-badge');
-  var body  = document.getElementById('yc-body');
+  var badge  = document.getElementById('yc-badge');
+  var body   = document.getElementById('yc-body');
   var signal = document.getElementById('yc-signal');
   if (!body) return;
 
-  /* Fetch all four key tenors from FRED */
+  /* Show loading skeleton immediately */
+  badge.textContent = 'LOADING';
+  body.innerHTML = ['2Y','5Y','10Y','30Y'].map(function(t) {
+    return '<div style="display:flex;align-items:center;gap:6px;">' +
+      '<span style="font-size:8px;color:#4a7a8a;width:22px;text-align:right;">' + t + '</span>' +
+      '<div style="flex:1;height:10px;background:#000d1a;border-radius:2px;">' +
+        '<div style="height:100%;width:30%;background:#00d4ff22;border-radius:2px;"></div>' +
+      '</div>' +
+      '<span style="font-size:9px;color:#4a7a8a;width:32px;text-align:right;">--</span>' +
+    '</div>';
+  }).join('');
+  signal.innerHTML = '<span style="color:#4a7a8a;">Fetching FRED data...</span>';
+
   var tenors = [
     { label:'2Y',  id:'DGS2'  },
     { label:'5Y',  id:'DGS5'  },
@@ -3230,33 +3241,43 @@ function renderYieldCurve() {
   var results = {};
   var loaded  = 0;
 
-  tenors.forEach(function(t) {
-    var url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(
-      'https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + t.id
-    );
+  var proxies = [
+    function(id){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id); },
+    function(id){ return 'https://corsproxy.io/?' + encodeURIComponent('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id); }
+  ];
+
+  function fetchTenor(tenor, proxyIdx) {
+    if (proxyIdx >= proxies.length) {
+      loaded++;
+      if (loaded === tenors.length) drawYieldCurve(tenors, results);
+      return;
+    }
+    var url = proxies[proxyIdx](tenor.id);
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
     xhr.timeout = 12000;
     xhr.onload = function() {
       try {
-        if (xhr.status === 200) {
+        if (xhr.status === 200 && xhr.responseText.length > 50) {
           var lines = xhr.responseText.trim().split('\n');
-          /* Get last non-empty value */
           for (var i = lines.length-1; i >= 1; i--) {
             var val = parseFloat(lines[i].split(',')[1]);
-            if (!isNaN(val) && val > 0) { results[t.id] = val; break; }
+            if (!isNaN(val) && val > 0) { results[tenor.id] = val; break; }
           }
         }
       } catch(e) {}
-      loaded++;
-      if (loaded === tenors.length) drawYieldCurve(tenors, results);
+      if (results[tenor.id]) {
+        loaded++;
+        if (loaded === tenors.length) drawYieldCurve(tenors, results);
+      } else {
+        fetchTenor(tenor, proxyIdx + 1);
+      }
     };
-    xhr.onerror = xhr.ontimeout = function() {
-      loaded++;
-      if (loaded === tenors.length) drawYieldCurve(tenors, results);
-    };
+    xhr.onerror = xhr.ontimeout = function() { fetchTenor(tenor, proxyIdx + 1); };
     xhr.send();
-  });
+  }
+
+  tenors.forEach(function(t) { fetchTenor(t, 0); });
 }
 
 function drawYieldCurve(tenors, results) {
@@ -3305,22 +3326,32 @@ function renderFearGreed() {
   var el    = document.getElementById('fg-score');
   var lbl   = document.getElementById('fg-label');
   var ndl   = document.getElementById('fg-needle');
+  var badge = document.getElementById('fg-badge');
   if (!el) return;
 
-  el.textContent = score !== null ? Math.round(score) : '--';
+  if (score === null) {
+    el.textContent  = '--';
+    el.style.color  = '#4a7a8a';
+    lbl.textContent = 'AWAITING PRICES';
+    lbl.style.color = '#4a7a8a';
+    if (badge) { badge.textContent = 'LOADING'; badge.className = 'badge dim'; }
+    return;
+  }
+
+  el.textContent = Math.round(score);
+  if (badge) { badge.textContent = 'LIVE'; badge.className = 'badge live'; }
 
   var label, color;
-  if      (score === null)  { label = 'NO DATA';       color = '#4a7a8a'; }
-  else if (score < 20)      { label = 'EXTREME FEAR';  color = '#ff2222'; }
-  else if (score < 40)      { label = 'FEAR';          color = '#ff8800'; }
-  else if (score < 60)      { label = 'NEUTRAL';       color = '#ffdd00'; }
-  else if (score < 80)      { label = 'GREED';         color = '#88dd00'; }
-  else                      { label = 'EXTREME GREED'; color = '#00ff88'; }
+  if      (score < 20) { label = 'EXTREME FEAR';  color = '#ff2222'; }
+  else if (score < 40) { label = 'FEAR';          color = '#ff8800'; }
+  else if (score < 60) { label = 'NEUTRAL';       color = '#ffdd00'; }
+  else if (score < 80) { label = 'GREED';         color = '#88dd00'; }
+  else                 { label = 'EXTREME GREED'; color = '#00ff88'; }
 
   lbl.textContent = label;
   lbl.style.color = color;
   el.style.color  = color;
-  if (ndl && score !== null) ndl.style.left = score + '%';
+  if (ndl) ndl.style.left = score + '%';
 }
 
 function calcFearGreed() {
@@ -3407,12 +3438,15 @@ function renderSentiment() {
   if (!body) return;
 
   var scores = calcSentiment();
-  badge.textContent = 'KEYWORD';
-  badge.className   = 'badge dim';
+  var hasData = tgPosts.length > 0;
+  if (badge) {
+    badge.textContent = hasData ? 'KEYWORD' : 'LOADING';
+    badge.className   = hasData ? 'badge dim' : 'badge dim';
+  }
 
   body.innerHTML = SENT_ASSETS.map(function(a) {
     var score = scores[a.id] || 0;
-    var pct   = ((score + 10) / 20) * 100; /* map -10..+10 to 0..100% */
+    var pct   = ((score + 10) / 20) * 100;
     var col   = score > 2 ? '#00ff88' : score < -2 ? '#ff4455' : '#ffdd00';
     var lbl   = score > 2 ? 'BULL' : score < -2 ? 'BEAR' : 'NEUT';
     return '<div style="display:flex;flex-direction:column;gap:2px;">' +
@@ -3421,7 +3455,6 @@ function renderSentiment() {
         '<span style="font-size:8px;font-weight:700;color:' + col + ';">' + (score >= 0 ? '+' : '') + score.toFixed(1) + ' ' + lbl + '</span>' +
       '</div>' +
       '<div style="width:100%;height:6px;background:#000d1a;border-radius:3px;overflow:hidden;position:relative;">' +
-        /* Center line */
         '<div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:#00d4ff22;"></div>' +
         '<div style="position:absolute;height:100%;width:6px;background:' + col + ';border-radius:3px;left:' + pct + '%;transform:translateX(-50%);transition:left 0.6s;"></div>' +
       '</div>' +
