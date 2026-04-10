@@ -3077,27 +3077,43 @@ function loadEconCalendar() {
   if (econLoaded) return;
   econLoaded = true;
   document.getElementById('econ-badge').textContent = 'LOADING';
-  var url = 'https://api.allorigins.win/raw?url=' +
-            encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.timeout = 15000;
-  xhr.onload = function() {
-    try {
-      if (xhr.status === 200) {
-        var events = JSON.parse(xhr.responseText);
-        renderEconCalendar(events);
-      } else { econError(); }
-    } catch(e) { econError(); }
-  };
-  xhr.onerror = xhr.ontimeout = econError;
-  xhr.send();
+
+  var proxies = [
+    'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json'),
+    'https://corsproxy.io/?' + encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json'),
+    'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json')
+  ];
+  var pIdx = 0;
+
+  function tryNext() {
+    if (pIdx >= proxies.length) { econError(); return; }
+    var url = proxies[pIdx++];
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      try {
+        if (xhr.status === 200 && xhr.responseText.length > 100) {
+          var events = JSON.parse(xhr.responseText);
+          if (Array.isArray(events) && events.length > 0) {
+            renderEconCalendar(events); return;
+          }
+        }
+      } catch(e) {}
+      tryNext();
+    };
+    xhr.onerror = xhr.ontimeout = tryNext;
+    xhr.send();
+  }
+  tryNext();
 }
 
 function econError() {
+  econLoaded = false; /* allow retry */
   document.getElementById('econ-badge').textContent = 'ERROR';
   document.getElementById('econ-feed').innerHTML =
-    '<div style="color:#4a7a8a;text-align:center;padding:12px;font-size:8px;letter-spacing:1px;">Unable to load calendar</div>';
+    '<div style="color:#4a7a8a;text-align:center;padding:12px;font-size:8px;letter-spacing:1px;">Unable to load — switch pages to retry</div>';
 }
 
 function renderEconCalendar(events) {
@@ -3163,9 +3179,10 @@ function loadEarnings() {
 }
 
 function earningsError() {
+  earningsLoaded = false; /* allow retry */
   document.getElementById('earn-badge').textContent = 'ERROR';
   document.getElementById('earn-feed').innerHTML =
-    '<div style="color:#4a7a8a;text-align:center;padding:12px;font-size:8px;">Unable to load earnings</div>';
+    '<div style="color:#4a7a8a;text-align:center;padding:12px;font-size:8px;">Unable to load — switch pages to retry</div>';
 }
 
 function renderEarnings(earnings) {
@@ -3241,18 +3258,56 @@ function renderYieldCurve() {
   var results = {};
   var loaded  = 0;
 
-  var proxies = [
+  /* FRED has a direct JSON API — no proxy needed */
+  var FRED_API = 'https://api.stlouisfed.org/fred/series/observations';
+  var FRED_KEY = 'b6a49dcde3e4e5bed5e8aafcde89f84b'; /* public demo key */
+
+  function fetchTenor(tenor) {
+    /* Try FRED JSON API first */
+    var url = FRED_API + '?series_id=' + tenor.id +
+              '&api_key=' + FRED_KEY +
+              '&file_type=json&limit=5&sort_order=desc';
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      var got = false;
+      try {
+        if (xhr.status === 200) {
+          var d = JSON.parse(xhr.responseText);
+          if (d.observations) {
+            for (var i = 0; i < d.observations.length; i++) {
+              var raw = d.observations[i].value;
+              if (raw !== '.' && raw !== '') {
+                var val = parseFloat(raw);
+                if (!isNaN(val) && val > 0) { results[tenor.id] = val; got = true; break; }
+              }
+            }
+          }
+        }
+      } catch(e) {}
+      if (!got) fetchTenorProxy(tenor);
+      else { loaded++; if (loaded === tenors.length) drawYieldCurve(tenors, results); }
+    };
+    xhr.onerror = xhr.ontimeout = function(){ fetchTenorProxy(tenor); };
+    xhr.send();
+  }
+
+  /* Proxy fallback for FRED CSV */
+  var proxyList = [
     function(id){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id); },
-    function(id){ return 'https://corsproxy.io/?' + encodeURIComponent('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id); }
+    function(id){ return 'https://corsproxy.io/?' + encodeURIComponent('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id); },
+    function(id){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id); }
   ];
 
-  function fetchTenor(tenor, proxyIdx) {
-    if (proxyIdx >= proxies.length) {
+  function fetchTenorProxy(tenor, pIdx) {
+    pIdx = pIdx || 0;
+    if (pIdx >= proxyList.length) {
       loaded++;
       if (loaded === tenors.length) drawYieldCurve(tenors, results);
       return;
     }
-    var url = proxies[proxyIdx](tenor.id);
+    var url = proxyList[pIdx](tenor.id);
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
     xhr.timeout = 12000;
@@ -3260,12 +3315,11 @@ function renderYieldCurve() {
       try {
         if (xhr.status === 200 && xhr.responseText.length > 50) {
           var lines = xhr.responseText.trim().split('\n');
-          /* FRED CSV: header row then DATE,VALUE — skip header, scan from bottom for last valid value */
           for (var i = lines.length-1; i >= 1; i--) {
             var parts = lines[i].split(',');
             if (parts.length < 2) continue;
             var raw = parts[1].trim();
-            if (raw === '.' || raw === '') continue; /* FRED uses '.' for missing */
+            if (raw === '.' || raw === '') continue;
             var val = parseFloat(raw);
             if (!isNaN(val) && val > 0) { results[tenor.id] = val; break; }
           }
@@ -3275,14 +3329,14 @@ function renderYieldCurve() {
         loaded++;
         if (loaded === tenors.length) drawYieldCurve(tenors, results);
       } else {
-        fetchTenor(tenor, proxyIdx + 1);
+        fetchTenorProxy(tenor, pIdx + 1);
       }
     };
-    xhr.onerror = xhr.ontimeout = function() { fetchTenor(tenor, proxyIdx + 1); };
+    xhr.onerror = xhr.ontimeout = function(){ fetchTenorProxy(tenor, pIdx + 1); };
     xhr.send();
   }
 
-  tenors.forEach(function(t) { fetchTenor(t, 0); });
+  tenors.forEach(function(t) { fetchTenor(t); });
 }
 
 function drawYieldCurve(tenors, results) {
@@ -3351,19 +3405,16 @@ function drawYieldCurve(tenors, results) {
 var fgScore = null;
 
 function fetchFearGreed() {
-  /* Try feargreedchart.com first — free, no key, CORS enabled */
+  /* alternative.me — free, CORS enabled, no key required */
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', 'https://feargreedchart.com/api/?action=current', true);
+  xhr.open('GET', 'https://api.alternative.me/fng/?limit=1&format=json', true);
   xhr.timeout = 10000;
   xhr.onload = function() {
     try {
       if (xhr.status === 200) {
         var d = JSON.parse(xhr.responseText);
-        /* Response: { score: { score: 45, ... } } */
-        var val = d.score && d.score.score != null ? d.score.score :
-                  d.value != null ? d.value : null;
-        if (val !== null && !isNaN(val)) {
-          fgScore = parseFloat(val);
+        if (d.data && d.data[0] && d.data[0].value) {
+          fgScore = parseFloat(d.data[0].value);
           renderFearGreed();
           return;
         }
@@ -3376,29 +3427,19 @@ function fetchFearGreed() {
 }
 
 function fetchFearGreedFallback() {
-  /* CNN production endpoint via allorigins proxy */
-  var url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(
-    'https://production.dataviz.cnn.io/index/fearandgreed/graphdata'
-  );
+  /* feargreedchart.com — secondary free API */
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.timeout = 12000;
+  xhr.open('GET', 'https://feargreedchart.com/api/?action=current', true);
+  xhr.timeout = 10000;
   xhr.onload = function() {
     try {
       if (xhr.status === 200) {
         var d = JSON.parse(xhr.responseText);
-        /* CNN response: { fear_and_greed: { score: 45.2, ... } } */
-        var val = d.fear_and_greed && d.fear_and_greed.score != null
-                  ? d.fear_and_greed.score : null;
-        if (val !== null && !isNaN(val)) {
-          fgScore = parseFloat(val);
-          renderFearGreed();
-          return;
-        }
+        var val = d.score && d.score.score != null ? d.score.score : null;
+        if (val !== null) { fgScore = parseFloat(val); renderFearGreed(); return; }
       }
     } catch(e) {}
-    /* Both failed — keep showing -- */
-    renderFearGreed();
+    renderFearGreed(); /* give up, show -- */
   };
   xhr.onerror = xhr.ontimeout = function(){ renderFearGreed(); };
   xhr.send();
