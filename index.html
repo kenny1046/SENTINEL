@@ -1140,8 +1140,7 @@ var KEYWORDS = {
 
 var keywordHits = {}; /* { category: [{text, channel, time}] } */
 
-function scanKeywords(text, channelName) {
-  var textLower = text.toLowerCase();
+function scanKeywords(text, channelName) {  var textLower = text.toLowerCase();
   var hits = [];
   Object.keys(KEYWORDS).forEach(function(cat) {
     var kw = KEYWORDS[cat];
@@ -1160,38 +1159,7 @@ function scanKeywords(text, channelName) {
       }
     });
   });
-  /* Check shipping keywords — update chokepoint status */
-  if (hits.some(function(h){ return h.cat === 'shipping'; })) {
-    checkShippingKeywords(textLower);
-  }
   return hits;
-}
-
-function checkShippingKeywords(text) {
-  /* Map text mentions to chokepoints */
-  var cpKeywords = {
-    redsea:    ['red sea','bab el','houthi','yemen','aden'],
-    hormuz:    ['hormuz','iran','persian gulf','strait of hormuz'],
-    suez:      ['suez','egypt','canal'],
-    panama:    ['panama','canal'],
-    malacca:   ['malacca','singapore','strait'],
-    bosphorus: ['bosphorus','istanbul','turkey','black sea']
-  };
-  var threatWords = ['attack','strike','drone','missile','closed','blockade','seized','fire'];
-  var hasThreat = threatWords.some(function(w){ return text.indexOf(w) > -1; });
-  if (!hasThreat) return;
-
-  CHOKEPOINTS.forEach(function(cp) {
-    var keys = cpKeywords[cp.id] || [];
-    var mentioned = keys.some(function(k){ return text.indexOf(k) > -1; });
-    if (mentioned) {
-      /* Escalate status */
-      if (cp.status === 'Green')  cp.status = 'Yellow';
-      else if (cp.status === 'Yellow') cp.status = 'Orange';
-      cp.note = 'Telegram alert: ' + new Date().toUTCString().substring(0,25);
-      console.log('SENTINEL: Chokepoint alert — ' + cp.name + ' → ' + cp.status);
-    }
-  });
 }
 
 var TG_PROXIES = [
@@ -3055,6 +3023,7 @@ function dismissAlert() {
   banner.style.display = 'none';
   banner.innerHTML = '';
 }
+
 
 window.addEventListener('load', function(){
   setTimeout(initGlobe, 300);
