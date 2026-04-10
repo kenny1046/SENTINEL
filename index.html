@@ -831,15 +831,53 @@ html, body {
 
     <!-- LEFT: coming soon -->
     <div id="recon-left">
-      <div class="panel" style="flex:1;">
-        <div class="panel-inner">
-          <div class="coming-soon">
-            <div class="icon">&#128202;</div>
-            <div class="label">COMING SOON</div>
-            <div class="items">Sentiment Gauges<br>Fear &amp; Greed Meter<br>Yield Curve</div>
+
+      <!-- Yield Curve -->
+      <div class="panel" style="flex-shrink:0;">
+        <div class="panel-inner" style="padding:6px 8px;">
+          <div class="panel-head">
+            <span class="panel-title">&#128200; Yield Curve</span>
+            <span class="badge dim" id="yc-badge">LOADING</span>
+          </div>
+          <div id="yc-body" style="display:flex;flex-direction:column;gap:4px;margin-top:4px;"></div>
+          <div id="yc-signal" style="font-size:8px;letter-spacing:1.5px;margin-top:6px;padding-top:4px;border-top:1px solid #00d4ff18;text-align:center;"></div>
+        </div>
+      </div>
+
+      <!-- Fear & Greed Meter -->
+      <div class="panel" style="flex-shrink:0;">
+        <div class="panel-inner" style="padding:6px 8px;">
+          <div class="panel-head">
+            <span class="panel-title">&#128561; Fear &amp; Greed</span>
+            <span class="badge dim" id="fg-badge">LIVE</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:4px;">
+            <div id="fg-score" style="font-size:36px;font-weight:700;font-family:'Exo 2',sans-serif;color:#fff;line-height:1;">--</div>
+            <div id="fg-label" style="font-size:10px;letter-spacing:3px;color:#4a7a8a;">LOADING</div>
+            <!-- Gauge bar -->
+            <div style="width:100%;height:8px;background:linear-gradient(90deg,#ff0000,#ff8800,#ffdd00,#88dd00,#00ff88);border-radius:4px;position:relative;">
+              <div id="fg-needle" style="position:absolute;top:-3px;width:2px;height:14px;background:#fff;border-radius:1px;transform:translateX(-50%);transition:left 0.8s ease;left:50%;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;width:100%;">
+              <span style="font-size:7px;color:#ff3d3d;letter-spacing:1px;">FEAR</span>
+              <span style="font-size:7px;color:#4a7a8a;letter-spacing:1px;">NEUTRAL</span>
+              <span style="font-size:7px;color:#00ff88;letter-spacing:1px;">GREED</span>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- Sentiment Gauges -->
+      <div class="panel" style="flex:1;min-height:0;">
+        <div class="panel-inner">
+          <div class="panel-head">
+            <span class="panel-title">&#128307; Sentiment</span>
+            <span class="badge dim" id="sent-badge">KEYWORD</span>
+          </div>
+          <div id="sent-body" style="display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;overflow-y:auto;"></div>
+        </div>
+      </div>
+
     </div>
 
     <!-- CENTER: 2x2 charts -->
@@ -3156,15 +3194,249 @@ function renderEarnings(earnings) {
   }).join('');
 }
 
-/* Hook into switchPage to load calendars on first RECON visit */
+/* Hook into switchPage to load calendars and RECON panels on first visit */
 var _spOrig = switchPage;
+var reconPanelsLoaded = false;
 switchPage = function(p) {
   _spOrig(p);
   if (p === 'recon') {
     setTimeout(loadEconCalendar, 300);
     setTimeout(loadEarnings,     500);
+    if (!reconPanelsLoaded) {
+      reconPanelsLoaded = true;
+      setTimeout(renderYieldCurve,  200);
+      setTimeout(renderFearGreed,   400);
+      setTimeout(renderSentiment,   600);
+    }
   }
 };
+
+/* ─────────────────────────────────────────────────────────────
+   YIELD CURVE — uses FRED data already fetched
+───────────────────────────────────────────────────────────── */
+function renderYieldCurve() {
+  var badge = document.getElementById('yc-badge');
+  var body  = document.getElementById('yc-body');
+  var signal = document.getElementById('yc-signal');
+  if (!body) return;
+
+  /* Fetch all four key tenors from FRED */
+  var tenors = [
+    { label:'2Y',  id:'DGS2'  },
+    { label:'5Y',  id:'DGS5'  },
+    { label:'10Y', id:'DGS10' },
+    { label:'30Y', id:'DGS30' }
+  ];
+  var results = {};
+  var loaded  = 0;
+
+  tenors.forEach(function(t) {
+    var url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(
+      'https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + t.id
+    );
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      try {
+        if (xhr.status === 200) {
+          var lines = xhr.responseText.trim().split('\n');
+          /* Get last non-empty value */
+          for (var i = lines.length-1; i >= 1; i--) {
+            var val = parseFloat(lines[i].split(',')[1]);
+            if (!isNaN(val) && val > 0) { results[t.id] = val; break; }
+          }
+        }
+      } catch(e) {}
+      loaded++;
+      if (loaded === tenors.length) drawYieldCurve(tenors, results);
+    };
+    xhr.onerror = xhr.ontimeout = function() {
+      loaded++;
+      if (loaded === tenors.length) drawYieldCurve(tenors, results);
+    };
+    xhr.send();
+  });
+}
+
+function drawYieldCurve(tenors, results) {
+  var badge  = document.getElementById('yc-badge');
+  var body   = document.getElementById('yc-body');
+  var signal = document.getElementById('yc-signal');
+  if (!body) return;
+
+  var values = tenors.map(function(t){ return results[t.id] || 0; });
+  var maxVal = Math.max.apply(null, values) || 5;
+  var spread = (results['DGS10'] || 0) - (results['DGS2'] || 0);
+  var inverted = spread < 0;
+
+  badge.textContent = 'FRED';
+  badge.className   = 'badge live';
+
+  body.innerHTML = tenors.map(function(t, i) {
+    var val  = results[t.id];
+    var pct  = val ? (val / maxVal * 100) : 0;
+    var col  = inverted && i < 2 ? '#ff4455' : '#00d4ff';
+    return '<div style="display:flex;align-items:center;gap:6px;">' +
+      '<span style="font-size:8px;color:#4a7a8a;width:22px;text-align:right;flex-shrink:0;">' + t.label + '</span>' +
+      '<div style="flex:1;height:10px;background:#000d1a;border-radius:2px;overflow:hidden;">' +
+        '<div style="height:100%;width:' + pct + '%;background:' + col + ';border-radius:2px;transition:width 0.6s;"></div>' +
+      '</div>' +
+      '<span style="font-size:9px;font-weight:700;color:' + col + ';width:32px;text-align:right;flex-shrink:0;">' + (val ? val.toFixed(2) + '%' : '--') + '</span>' +
+    '</div>';
+  }).join('');
+
+  var spreadColor = inverted ? '#ff4455' : '#00ff88';
+  var spreadLabel = inverted ? 'INVERTED ⚠' : 'NORMAL';
+  signal.innerHTML = '10Y-2Y Spread: <span style="color:' + spreadColor + ';font-weight:700;">' +
+    (spread >= 0 ? '+' : '') + spread.toFixed(2) + '% — ' + spreadLabel + '</span>';
+
+  /* Update realPrices.spread for macro stack */
+  if (!isNaN(spread)) realPrices.spread = spread;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   FEAR & GREED — calculated from real prices
+   Composite of: VIX proxy, Gold/SPY ratio, BTC momentum,
+   DXY move, yield spread
+───────────────────────────────────────────────────────────── */
+function renderFearGreed() {
+  var score = calcFearGreed();
+  var el    = document.getElementById('fg-score');
+  var lbl   = document.getElementById('fg-label');
+  var ndl   = document.getElementById('fg-needle');
+  if (!el) return;
+
+  el.textContent = score !== null ? Math.round(score) : '--';
+
+  var label, color;
+  if      (score === null)  { label = 'NO DATA';       color = '#4a7a8a'; }
+  else if (score < 20)      { label = 'EXTREME FEAR';  color = '#ff2222'; }
+  else if (score < 40)      { label = 'FEAR';          color = '#ff8800'; }
+  else if (score < 60)      { label = 'NEUTRAL';       color = '#ffdd00'; }
+  else if (score < 80)      { label = 'GREED';         color = '#88dd00'; }
+  else                      { label = 'EXTREME GREED'; color = '#00ff88'; }
+
+  lbl.textContent = label;
+  lbl.style.color = color;
+  el.style.color  = color;
+  if (ndl && score !== null) ndl.style.left = score + '%';
+}
+
+function calcFearGreed() {
+  if (!realPricesReady) return null;
+  var p = realPrices;
+  var scores = [];
+
+  /* VIX proxy — high VIX = fear (invert) */
+  if (p.vixy !== null) {
+    var vixScore = Math.max(0, Math.min(100, 50 - p.vixy * 5));
+    scores.push(vixScore);
+  }
+  /* SPY momentum — up = greed, down = fear */
+  if (p.spy !== null) {
+    var spyScore = Math.max(0, Math.min(100, 50 + p.spy * 10));
+    scores.push(spyScore);
+  }
+  /* Gold move — gold up = fear */
+  if (p.gold !== null) {
+    var goldScore = Math.max(0, Math.min(100, 50 - p.gold * 8));
+    scores.push(goldScore);
+  }
+  /* DXY — dollar up = fear */
+  if (p.uup !== null) {
+    var dxyScore = Math.max(0, Math.min(100, 50 - p.uup * 10));
+    scores.push(dxyScore);
+  }
+  /* BTC momentum — up = greed */
+  if (p.btc !== null) {
+    var btcScore = Math.max(0, Math.min(100, 50 + p.btc * 3));
+    scores.push(btcScore);
+  }
+  /* Yield spread — inverted = fear */
+  if (p.spread !== null) {
+    var spreadScore = Math.max(0, Math.min(100, 50 + p.spread * 15));
+    scores.push(spreadScore);
+  }
+
+  if (!scores.length) return null;
+  return scores.reduce(function(a,b){ return a+b; }, 0) / scores.length;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   SENTIMENT GAUGES — keyword scoring from Telegram posts
+   Assets: BTC, Gold, SPY, Oil, EUR/USD
+───────────────────────────────────────────────────────────── */
+var SENT_ASSETS = [
+  { id:'btc',  label:'BTC',     bull:['bitcoin','crypto','btc','rally','moon','etf','buy'], bear:['crash','dump','hack','ban','sell','plunge'] },
+  { id:'gold', label:'GOLD',    bull:['gold','safe haven','xau','bullion','record','surge'], bear:['gold falls','gold drops','gold down','selling gold'] },
+  { id:'spy',  label:'SPY',     bull:['rally','bull','stocks up','market up','growth','buy'],  bear:['crash','selloff','bear','recession','plunge','sell'] },
+  { id:'oil',  label:'WTI OIL', bull:['oil rally','crude up','opec cut','supply cut','demand'], bear:['oil falls','crude down','demand weak','oversupply','glut'] },
+  { id:'eur',  label:'EUR/USD', bull:['euro rally','eur up','ecb hawkish','eurozone growth'],  bear:['euro falls','eur down','ecb dovish','eurozone crisis'] }
+];
+
+function calcSentiment() {
+  /* Score each asset from recent Telegram posts */
+  var scores = {};
+  SENT_ASSETS.forEach(function(a){ scores[a.id] = 0; });
+
+  if (!tgPosts.length) return scores;
+
+  /* Only use posts from last 2 hours */
+  var cutoff = Date.now() - 2*60*60*1000;
+  var recent = tgPosts.filter(function(p){ return p.ts > cutoff; });
+
+  recent.forEach(function(post) {
+    var txt = post.text.toLowerCase();
+    SENT_ASSETS.forEach(function(a) {
+      a.bull.forEach(function(w){ if (txt.indexOf(w) > -1) scores[a.id] += 1; });
+      a.bear.forEach(function(w){ if (txt.indexOf(w) > -1) scores[a.id] -= 1; });
+    });
+  });
+
+  /* Normalize to -10 to +10 */
+  Object.keys(scores).forEach(function(k) {
+    scores[k] = Math.max(-10, Math.min(10, scores[k]));
+  });
+  return scores;
+}
+
+function renderSentiment() {
+  var body  = document.getElementById('sent-body');
+  var badge = document.getElementById('sent-badge');
+  if (!body) return;
+
+  var scores = calcSentiment();
+  badge.textContent = 'KEYWORD';
+  badge.className   = 'badge dim';
+
+  body.innerHTML = SENT_ASSETS.map(function(a) {
+    var score = scores[a.id] || 0;
+    var pct   = ((score + 10) / 20) * 100; /* map -10..+10 to 0..100% */
+    var col   = score > 2 ? '#00ff88' : score < -2 ? '#ff4455' : '#ffdd00';
+    var lbl   = score > 2 ? 'BULL' : score < -2 ? 'BEAR' : 'NEUT';
+    return '<div style="display:flex;flex-direction:column;gap:2px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<span style="font-size:9px;font-weight:700;color:#a8e8f8;letter-spacing:1px;">' + a.label + '</span>' +
+        '<span style="font-size:8px;font-weight:700;color:' + col + ';">' + (score >= 0 ? '+' : '') + score.toFixed(1) + ' ' + lbl + '</span>' +
+      '</div>' +
+      '<div style="width:100%;height:6px;background:#000d1a;border-radius:3px;overflow:hidden;position:relative;">' +
+        /* Center line */
+        '<div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:#00d4ff22;"></div>' +
+        '<div style="position:absolute;height:100%;width:6px;background:' + col + ';border-radius:3px;left:' + pct + '%;transform:translateX(-50%);transition:left 0.6s;"></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* Refresh sentiment every 30s when on RECON page */
+setInterval(function() {
+  if (currentPage === 'recon') {
+    renderSentiment();
+    renderFearGreed();
+  }
+}, 30000);
+
 </script>
 </body>
 </html>
