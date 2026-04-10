@@ -703,16 +703,31 @@ html, body {
           <!-- Toggle buttons -->
           <div id="globe-toggles">
             <div style="font-size:7px;letter-spacing:2px;color:#00d4ff55;margin-bottom:2px;text-align:right;">OVERLAY TOGGLES</div>
-            <button class="g-toggle on"  id="tog-equities"   onclick="toggleLayer('equities')">&#128200; EQUITIES ON</button>
-            <button class="g-toggle"     id="tog-forex"      onclick="toggleLayer('forex')">&#128177; FOREX OFF</button>
-            <button class="g-toggle"     id="tog-events"     onclick="toggleLayer('events')">&#9888; DISASTERS OFF</button>
-            <button class="g-toggle"     id="tog-conflicts"  onclick="toggleLayer('conflicts')">&#9876; CONFLICTS OFF</button>
+            <button class="g-toggle on"  id="tog-equities"    onclick="toggleLayer('equities')">&#128200; EQUITIES ON</button>
+            <button class="g-toggle"     id="tog-forex"       onclick="toggleLayer('forex')">&#128177; FOREX OFF</button>
+            <button class="g-toggle"     id="tog-events"      onclick="toggleLayer('events')">&#9888; DISASTERS OFF</button>
+            <button class="g-toggle"     id="tog-conflicts"   onclick="toggleLayer('conflicts')">&#9876; CONFLICTS OFF</button>
             <button class="g-toggle on"  id="tog-chokepoints" onclick="toggleLayer('chokepoints')">&#9875; CHOKEPOINTS ON</button>
-            <button class="g-toggle"     id="tog-bases"      onclick="toggleLayer('bases')">&#129686; MIL BASES OFF</button>
-            <button class="g-toggle"     id="tog-tension"    onclick="toggleLayer('tension')">&#127777; TENSION OFF</button>
+            <button class="g-toggle"     id="tog-bases"       onclick="toggleLayer('bases')">&#129686; MIL BASES OFF</button>
+            <button class="g-toggle"     id="tog-tension"     onclick="toggleLayer('tension')">&#127777; TENSION OFF</button>
+            <button class="g-toggle"     id="tog-oilgas"      onclick="toggleLayer('oilgas')">&#128741; OIL/GAS OFF</button>
+            <button class="g-toggle"     id="tog-cables"      onclick="toggleLayer('cables')">&#128268; CABLES OFF</button>
+            <button class="g-toggle"     id="tog-nuclear"     onclick="toggleLayer('nuclear')">&#9762; NUCLEAR OFF</button>
+            <button class="g-toggle"     id="tog-sanctions"   onclick="toggleLayer('sanctions')">&#128683; SANCTIONS OFF</button>
+            <button class="g-toggle"     id="tog-commodity"   onclick="toggleLayer('commodity')">&#127757; COMMODITY OFF</button>
           </div>
 
-          <!-- Legend -->
+          <!-- Commodity selector — shown when commodity toggle is ON -->
+          <div id="commodity-selector" style="display:none;position:absolute;top:8px;left:8px;z-index:10;background:rgba(0,9,19,0.88);border:1px solid rgba(0,212,255,0.2);padding:4px 6px;">
+            <div style="font-size:7px;letter-spacing:2px;color:#00d4ff55;margin-bottom:3px;">COMMODITY</div>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <button class="g-toggle on" id="cmd-oil"     onclick="setCommodity('oil')">&#128741; OIL</button>
+              <button class="g-toggle"    id="cmd-gas"     onclick="setCommodity('gas')">&#128293; GAS</button>
+              <button class="g-toggle"    id="cmd-wheat"   onclick="setCommodity('wheat')">&#127807; WHEAT</button>
+              <button class="g-toggle"    id="cmd-copper"  onclick="setCommodity('copper')">&#129748; COPPER</button>
+              <button class="g-toggle"    id="cmd-lithium" onclick="setCommodity('lithium')">&#9889; LITHIUM</button>
+            </div>
+          </div>
           <div id="globe-legend">
             <div class="legend-title">LIVE EVENTS</div>
             <div class="legend-dots">
@@ -726,6 +741,9 @@ html, body {
               <span style="color:#ffcc00;">&#9679; Drought</span>
               <span style="color:#00ffff;">&#9671; Chokepoint</span>
               <span style="color:#4488ff;">&#9632; Mil Base</span>
+              <span style="color:#ff8800;">&#9670; Oil/Gas</span>
+              <span style="color:#00aaff;">&#9135; Cable</span>
+              <span style="color:#ffff00;">&#9762; Nuclear</span>
             </div>
             <div style="font-size:7px;color:#4a7a8a;margin-top:3px;letter-spacing:1px;">DOT SIZE = SEVERITY &middot; CLICK FOR BRIEFING</div>
             <div id="globe-status" style="font-size:7px;color:#4a7a8a;margin-top:2px;letter-spacing:1px;">&#8987; Loading data...</div>
@@ -1065,12 +1083,116 @@ function switchMap(name) {
 /* ─────────────────────────────────────────────────────────────
    TELEGRAM INTEL FEED
 ───────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────
+   TELEGRAM CHANNELS
+   Display channels — shown in intel feed
+   Background channels — silently scanned for keywords only
+───────────────────────────────────────────────────────────── */
 var TG_CHANNELS = [
-  { name:'FinancialJuice', color:'#ffbb00', url:'https://t.me/s/FinancialJuice' },
-  { name:'disclosetv',     color:'#ff3d3d', url:'https://t.me/s/disclosetv'     }
+  /* Display channels — shown in intel feed */
+  { name:'FinancialJuice', color:'#ffbb00', url:'https://t.me/s/FinancialJuice',  display:true  },
+  { name:'disclosetv',     color:'#ff3d3d', url:'https://t.me/s/disclosetv',      display:true  },
+  { name:'tradingecon',    color:'#00d4ff', url:'https://t.me/s/tradingecon',     display:true  },
+  { name:'OsintTv',        color:'#cc88ff', url:'https://t.me/s/OsintTv',         display:true  },
+  /* Background channels — keyword scan only, not shown in feed */
+  { name:'osintlive',      color:'#888',    url:'https://t.me/s/osintlive',       display:false },
+  { name:'OSINTdefender',  color:'#888',    url:'https://t.me/s/OSINTdefender',   display:false },
+  { name:'intelslavaz',    color:'#888',    url:'https://t.me/s/intelslavaz',     display:false },
+  { name:'WorldNews',      color:'#888',    url:'https://t.me/s/WorldNews',       display:false },
+  { name:'fxstreetforex',  color:'#888',    url:'https://t.me/s/fxstreetforex',   display:false }
 ];
 var tgPosts = [];
 var tgIdx   = 0;
+
+/* ─────────────────────────────────────────────────────────────
+   KEYWORD ENGINE
+   Scans all channels for geopolitical/market keywords
+   Results feed into macro stack and chokepoint status
+───────────────────────────────────────────────────────────── */
+var KEYWORDS = {
+  shipping: {
+    words: ['attack','vessel','tanker','ship','cargo','port','blockade','hijack',
+            'drone','missile','red sea','hormuz','suez','bab el','houthi',
+            'seized','detained','diverted','reroute','closed','fire','explosion'],
+    color: '#00ffff'
+  },
+  energy: {
+    words: ['opec','pipeline','oil','crude','brent','wti','gas','lng','refinery',
+            'cut','output','production','supply','shortage','embargo'],
+    color: '#ff8800'
+  },
+  conflict: {
+    words: ['strike','airstrike','offensive','ceasefire','invasion','troops',
+            'military','nato','sanctions','nuclear','missile','troops','escalat'],
+    color: '#ff3333'
+  },
+  macro: {
+    words: ['fed','fomc','rate','hike','cut','inflation','cpi','nfp','gdp',
+            'recession','default','crisis','bank','yield','treasury','dollar'],
+    color: '#00ff88'
+  },
+  crypto: {
+    words: ['bitcoin','btc','ethereum','eth','crypto','sec','etf','halving',
+            'exchange','hack','binance','coinbase'],
+    color: '#cc88ff'
+  }
+};
+
+var keywordHits = {}; /* { category: [{text, channel, time}] } */
+
+function scanKeywords(text, channelName) {
+  var textLower = text.toLowerCase();
+  var hits = [];
+  Object.keys(KEYWORDS).forEach(function(cat) {
+    var kw = KEYWORDS[cat];
+    kw.words.forEach(function(word) {
+      if (textLower.indexOf(word) > -1) {
+        if (!keywordHits[cat]) keywordHits[cat] = [];
+        keywordHits[cat].push({
+          text: text.substring(0,120),
+          channel: channelName,
+          word: word,
+          time: Date.now()
+        });
+        /* Keep only last 20 hits per category */
+        if (keywordHits[cat].length > 20) keywordHits[cat].shift();
+        hits.push({ cat:cat, word:word });
+      }
+    });
+  });
+  /* Check shipping keywords — update chokepoint status */
+  if (hits.some(function(h){ return h.cat === 'shipping'; })) {
+    checkShippingKeywords(textLower);
+  }
+  return hits;
+}
+
+function checkShippingKeywords(text) {
+  /* Map text mentions to chokepoints */
+  var cpKeywords = {
+    redsea:    ['red sea','bab el','houthi','yemen','aden'],
+    hormuz:    ['hormuz','iran','persian gulf','strait of hormuz'],
+    suez:      ['suez','egypt','canal'],
+    panama:    ['panama','canal'],
+    malacca:   ['malacca','singapore','strait'],
+    bosphorus: ['bosphorus','istanbul','turkey','black sea']
+  };
+  var threatWords = ['attack','strike','drone','missile','closed','blockade','seized','fire'];
+  var hasThreat = threatWords.some(function(w){ return text.indexOf(w) > -1; });
+  if (!hasThreat) return;
+
+  CHOKEPOINTS.forEach(function(cp) {
+    var keys = cpKeywords[cp.id] || [];
+    var mentioned = keys.some(function(k){ return text.indexOf(k) > -1; });
+    if (mentioned) {
+      /* Escalate status */
+      if (cp.status === 'Green')  cp.status = 'Yellow';
+      else if (cp.status === 'Yellow') cp.status = 'Orange';
+      cp.note = 'Telegram alert: ' + new Date().toUTCString().substring(0,25);
+      console.log('SENTINEL: Chokepoint alert — ' + cp.name + ' → ' + cp.status);
+    }
+  });
+}
 
 var TG_PROXIES = [
   function(url){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url); },
@@ -1108,7 +1230,7 @@ function tgAge(date) {
   return Math.floor(m/1440) + 'd ago';
 }
 
-function tgParse(html, name, color) {
+function tgParse(html, name, color, isDisplay) {
   var out = [];
   var parts = html.split('tgme_widget_message_wrap');
   for (var i = 1; i < parts.length; i++) {
@@ -1123,8 +1245,19 @@ function tgParse(html, name, color) {
     if (!txt || txt.length < 4) continue;
     var dtm = p.match(/datetime="([^"]+)"/);
     var ts  = dtm ? new Date(dtm[1]).getTime() : Date.now();
-    out.push({ text:txt.substring(0,220), channel:name, color:color, ts:ts,
-               time: dtm ? tgAge(new Date(dtm[1])) : '' });
+
+    /* Always scan keywords regardless of display status */
+    var hits = scanKeywords(txt, name);
+
+    /* Only add to display feed if this is a display channel */
+    if (isDisplay) {
+      /* Highlight keyword hits in display posts */
+      var allHitWords = hits.map(function(h){ return h.word; });
+      var displayTxt = txt.substring(0,220);
+      out.push({ text:displayTxt, channel:name, color:color, ts:ts,
+                 time: dtm ? tgAge(new Date(dtm[1])) : '',
+                 keywords: allHitWords });
+    }
   }
   return out;
 }
@@ -1141,12 +1274,20 @@ function tgRender() {
   badge.className   = 'badge live';
   tgPosts.sort(function(a,b){ return b.ts - a.ts; });
   feed.innerHTML = tgPosts.slice(0,40).map(function(p){
+    /* Highlight keyword hits */
+    var txt = p.text;
+    if (p.keywords && p.keywords.length) {
+      p.keywords.forEach(function(kw) {
+        var re = new RegExp('(' + kw + ')', 'gi');
+        txt = txt.replace(re, '<span style="background:rgba(255,187,0,0.2);color:#ffdd88;">$1</span>');
+      });
+    }
     return '<div style="padding:6px 3px;border-bottom:1px solid rgba(0,212,255,0.07);">' +
       '<div style="display:flex;justify-content:space-between;margin-bottom:2px;">' +
         '<span style="font-size:9px;font-weight:700;color:' + p.color + ';letter-spacing:1px;">@' + p.channel + '</span>' +
         '<span style="font-size:8px;color:#4a7a8a;">' + p.time + '</span>' +
       '</div>' +
-      '<div style="font-size:10px;color:#a8e8f8;line-height:1.55;">' + p.text + '</div>' +
+      '<div style="font-size:10px;color:#a8e8f8;line-height:1.55;">' + txt + '</div>' +
     '</div>';
   }).join('');
 }
@@ -1156,18 +1297,24 @@ function tgFetchOne(silent) {
   var ch = TG_CHANNELS[tgIdx];
   fetchWithFallback(ch.url, TG_PROXIES, function(text) {
     if (text) {
-      var fresh = tgParse(text, ch.name, ch.color);
-      if (silent) {
-        var seen = {};
-        tgPosts.forEach(function(p){ seen[p.text] = true; });
-        fresh.forEach(function(p){ if (!seen[p.text]) tgPosts.push(p); });
-        if (tgPosts.length > 60) tgPosts = tgPosts.slice(0,60);
-      } else {
-        tgPosts = tgPosts.concat(fresh);
+      var fresh = tgParse(text, ch.name, ch.color, ch.display);
+      if (ch.display) {
+        /* Display channel — add to feed */
+        if (silent) {
+          var seen = {};
+          tgPosts.forEach(function(p){ seen[p.text] = true; });
+          fresh.forEach(function(p){ if (!seen[p.text]) tgPosts.push(p); });
+          if (tgPosts.length > 60) tgPosts = tgPosts.slice(0,60);
+        } else {
+          tgPosts = tgPosts.concat(fresh);
+        }
       }
+      /* Background channels: keywords already scanned in tgParse, nothing else to do */
     }
     tgIdx++;
-    setTimeout(function(){ tgFetchOne(silent); }, 1500);
+    /* Stagger background channels more to save bandwidth */
+    var delay = ch.display ? 1500 : 3000;
+    setTimeout(function(){ tgFetchOne(silent); }, delay);
   });
 }
 
@@ -1342,13 +1489,15 @@ var globeCountries, globeD3OK = false;
 var pulseT = 0;
 setInterval(function(){ pulseT++; }, 80);
 
-var globeLayers = { equities:true, forex:false, events:false, conflicts:false, chokepoints:true, bases:false, tension:false };
+var globeLayers = { equities:true, forex:false, events:false, conflicts:false, chokepoints:true, bases:false, tension:false, oilgas:false, cables:false, nuclear:false, sanctions:false, commodity:false };
+var activeCommodity = 'oil';
 
 var EVENT_COLORS = {
   earthquake:'#ff8c00', volcano:'#ff00ff', cyclone:'#cc44ff',
   flood:'#0088ff',      wildfire:'#ff6600', conflict:'#ff0000',
   epidemic:'#00ff44',   drought:'#ffcc00',
-  chokepoint:'#00ffff', military:'#4488ff'
+  chokepoint:'#00ffff', military:'#4488ff',
+  oilgas:'#ff8800',     nuclear:'#ffff00'
 };
 
 /* Exchange dots */
@@ -1540,23 +1689,146 @@ fhEnqueueAll();
 setInterval(fhEnqueueAll, 45000);
 
 /* Static conflict zones */
-var CONFLICTS = [
-  {name:'Ukraine War',          lat:49.0,  lon:31.0,  type:'conflict', severity:'Red'},
-  {name:'Gaza Conflict',        lat:31.5,  lon:34.5,  type:'conflict', severity:'Red'},
-  {name:'Sudan Civil War',      lat:15.5,  lon:32.5,  type:'conflict', severity:'Red'},
-  {name:'Yemen War',            lat:15.5,  lon:44.2,  type:'conflict', severity:'Red'},
-  {name:'Syria Conflict',       lat:34.8,  lon:38.9,  type:'conflict', severity:'Orange'},
-  {name:'Sahel Insurgency',     lat:14.5,  lon:1.5,   type:'conflict', severity:'Orange'},
-  {name:'DRC Conflict',         lat:-4.0,  lon:21.7,  type:'conflict', severity:'Orange'},
-  {name:'Somalia Insurgency',   lat:5.15,  lon:46.2,  type:'conflict', severity:'Orange'},
-  {name:'Myanmar Civil War',    lat:19.0,  lon:96.5,  type:'conflict', severity:'Orange'},
-  {name:'Ethiopia Conflict',    lat:9.0,   lon:40.5,  type:'conflict', severity:'Orange'},
-  {name:'Nagorno-Karabakh',     lat:40.0,  lon:46.7,  type:'conflict', severity:'Green'},
-  {name:'Taiwan Strait Tension',lat:23.7,  lon:120.9, type:'conflict', severity:'Orange'}
+/* ─────────────────────────────────────────────────────────────
+   CONFLICT DATA
+   ACLED replaces hardcoded list when key is available.
+   Fallback to curated static list until then.
+───────────────────────────────────────────────────────────── */
+var ACLED_KEY  = '';   // paste your ACLED key here when you have it
+var ACLED_EMAIL = '';  // paste your ACLED email here
+
+var CONFLICTS_STATIC = [
+  {name:'Ukraine War',           lat:49.0,  lon:31.0,  type:'conflict', severity:'Red',    source:'Static'},
+  {name:'Gaza Conflict',         lat:31.5,  lon:34.5,  type:'conflict', severity:'Red',    source:'Static'},
+  {name:'Sudan Civil War',       lat:15.5,  lon:32.5,  type:'conflict', severity:'Red',    source:'Static'},
+  {name:'Yemen War',             lat:15.5,  lon:44.2,  type:'conflict', severity:'Red',    source:'Static'},
+  {name:'Syria Conflict',        lat:34.8,  lon:38.9,  type:'conflict', severity:'Orange', source:'Static'},
+  {name:'Sahel Insurgency',      lat:14.5,  lon:1.5,   type:'conflict', severity:'Orange', source:'Static'},
+  {name:'DRC Conflict',          lat:-4.0,  lon:21.7,  type:'conflict', severity:'Orange', source:'Static'},
+  {name:'Somalia Insurgency',    lat:5.15,  lon:46.2,  type:'conflict', severity:'Orange', source:'Static'},
+  {name:'Myanmar Civil War',     lat:19.0,  lon:96.5,  type:'conflict', severity:'Orange', source:'Static'},
+  {name:'Ethiopia Conflict',     lat:9.0,   lon:40.5,  type:'conflict', severity:'Orange', source:'Static'},
+  {name:'Haiti Gang Violence',   lat:18.5,  lon:-72.3, type:'conflict', severity:'Orange', source:'Static'},
+  {name:'Taiwan Strait Tension', lat:23.7,  lon:120.9, type:'conflict', severity:'Orange', source:'Static'},
+  {name:'Iran-Israel Tension',   lat:32.0,  lon:53.0,  type:'conflict', severity:'Orange', source:'Static'},
+  {name:'Nigeria Boko Haram',    lat:11.8,  lon:13.2,  type:'conflict', severity:'Orange', source:'Static'},
+  {name:'Mozambique Insurgency', lat:-15.0, lon:40.5,  type:'conflict', severity:'Green',  source:'Static'}
 ];
+
+var CONFLICTS = CONFLICTS_STATIC.slice(); // will be replaced by ACLED when key available
+
+function loadACLED() {
+  if (!ACLED_KEY || !ACLED_EMAIL) return; // skip if no key yet
+  var today     = new Date();
+  var monthAgo  = new Date(today.getTime() - 30*24*60*60*1000);
+  function fmt(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  var url = 'https://api.acleddata.com/acled/read?key=' + ACLED_KEY +
+            '&email=' + ACLED_EMAIL +
+            '&event_date=' + fmt(monthAgo) + '|' + fmt(today) +
+            '&event_date_where=BETWEEN' +
+            '&event_type=Battles|Explosions/Remote%20violence|Violence%20against%20civilians' +
+            '&limit=200&fields=event_date|event_type|country|location|latitude|longitude|fatalities';
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 20000;
+  xhr.onload = function() {
+    try {
+      if (xhr.status === 200) {
+        var data = JSON.parse(xhr.responseText);
+        if (data.data && data.data.length) {
+          /* Cluster events by proximity — group within 1 degree */
+          var clusters = [];
+          data.data.forEach(function(e) {
+            var lat = parseFloat(e.latitude);
+            var lon = parseFloat(e.longitude);
+            if (isNaN(lat) || isNaN(lon)) return;
+            var found = clusters.find(function(c){
+              return Math.abs(c.lat-lat)<1 && Math.abs(c.lon-lon)<1;
+            });
+            if (found) {
+              found.count++;
+              found.fatalities += parseInt(e.fatalities)||0;
+            } else {
+              clusters.push({
+                name: e.location + ', ' + e.country,
+                lat:lat, lon:lon, count:1,
+                fatalities: parseInt(e.fatalities)||0,
+                type:'conflict', source:'ACLED'
+              });
+            }
+          });
+          /* Score severity by fatality count */
+          CONFLICTS = clusters.map(function(c) {
+            return {
+              name: c.name, lat:c.lat, lon:c.lon,
+              type:'conflict', source:'ACLED',
+              severity: c.fatalities > 100 ? 'Red' : c.fatalities > 20 ? 'Orange' : 'Green',
+              note: c.count + ' events, ' + c.fatalities + ' fatalities (30 days)'
+            };
+          });
+          document.getElementById('globe-status').textContent = 'ACLED: ' + CONFLICTS.length + ' conflict clusters';
+        }
+      }
+    } catch(e) { console.log('ACLED error', e); }
+  };
+  xhr.send();
+}
 
 var globalEvents = [];
 var globeDataMsg = 'Loading...';
+
+/* ─────────────────────────────────────────────────────────────
+   GDELT — supplements GDACS with faster, broader event coverage
+───────────────────────────────────────────────────────────── */
+function loadGDELT() {
+  /* GDELT GKG - fetch last 15 minutes of disaster/crisis events */
+  var url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(
+    'https://api.gdeltproject.org/api/v2/geo/geo?query=disaster%20OR%20earthquake%20OR%20flood%20OR%20cyclone%20OR%20volcano&mode=pointdata&maxrecords=50&format=json'
+  );
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    try {
+      if (xhr.status === 200 && xhr.responseText.length > 100) {
+        var data = JSON.parse(xhr.responseText);
+        if (data.features) {
+          var gdeltEvts = [];
+          data.features.forEach(function(f) {
+            if (!f.geometry || !f.geometry.coordinates) return;
+            var lon = f.geometry.coordinates[0];
+            var lat = f.geometry.coordinates[1];
+            var name = (f.properties && f.properties.name) ? f.properties.name.substring(0,60) : 'GDELT Event';
+            var tone = (f.properties && f.properties.avgtone) ? parseFloat(f.properties.avgtone) : 0;
+            gdeltEvts.push({
+              name: name, lat:lat, lon:lon,
+              type: detectEventType(name),
+              severity: tone < -5 ? 'Red' : tone < -2 ? 'Orange' : 'Green',
+              source: 'GDELT'
+            });
+          });
+          /* Merge with existing GDACS events — GDELT supplements, doesn't replace */
+          var gdacsEvts = globalEvents.filter(function(e){ return e.source === 'GDACS' || e.source === 'USGS'; });
+          globalEvents = gdacsEvts.concat(gdeltEvts);
+          document.getElementById('globe-status').textContent = 'Events: ' + globalEvents.length + ' (GDACS+GDELT+USGS)';
+        }
+      }
+    } catch(e) { /* GDELT can be unreliable, fail silently */ }
+  };
+  xhr.onerror = xhr.ontimeout = function(){};
+  xhr.send();
+}
+
+function detectEventType(name) {
+  name = name.toLowerCase();
+  if (name.indexOf('earthquake') > -1 || name.indexOf('quake') > -1) return 'earthquake';
+  if (name.indexOf('flood') > -1) return 'flood';
+  if (name.indexOf('cyclone') > -1 || name.indexOf('hurricane') > -1 || name.indexOf('typhoon') > -1) return 'cyclone';
+  if (name.indexOf('volcano') > -1 || name.indexOf('eruption') > -1) return 'volcano';
+  if (name.indexOf('fire') > -1 || name.indexOf('wildfire') > -1) return 'wildfire';
+  if (name.indexOf('drought') > -1) return 'drought';
+  return 'earthquake'; // default
+}
 
 /* Country name map for labels */
 var COUNTRY_NAMES = {
@@ -1587,10 +1859,10 @@ function loadGDACS() {
         var evts = [];
         items.forEach(function(item) {
           var title = (item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/) || [])[1] || '';
-          var lat  = (item.match(/<geo:lat>(.*?)<\/geo:lat>/) || [])[1];
-          var lon  = (item.match(/<geo:long>(.*?)<\/geo:long>/) || [])[1];
-          var sev  = (item.match(/<gdacs:alertlevel>(.*?)<\/gdacs:alertlevel>/) || [])[1] || 'Green';
-          var etype= (item.match(/<gdacs:eventtype>(.*?)<\/gdacs:eventtype>/) || [])[1] || '';
+          var lat   = (item.match(/<geo:lat>(.*?)<\/geo:lat>/) || [])[1];
+          var lon   = (item.match(/<geo:long>(.*?)<\/geo:long>/) || [])[1];
+          var sev   = (item.match(/<gdacs:alertlevel>(.*?)<\/gdacs:alertlevel>/) || [])[1] || 'Green';
+          var etype = (item.match(/<gdacs:eventtype>(.*?)<\/gdacs:eventtype>/) || [])[1] || '';
           if (!lat || !lon) return;
           var typeMap = {EQ:'earthquake',VO:'volcano',TC:'cyclone',FL:'flood',WF:'wildfire',DR:'drought',EP:'epidemic'};
           evts.push({
@@ -1600,9 +1872,12 @@ function loadGDACS() {
             source:'GDACS'
           });
         });
-        globalEvents = evts;
-        globeDataMsg = 'GDACS: ' + evts.length + ' events';
-        document.getElementById('globe-status').textContent = globeDataMsg;
+        /* Keep USGS events already loaded */
+        var usgsEvts = globalEvents.filter(function(e){ return e.source==='USGS'; });
+        globalEvents = evts.concat(usgsEvts);
+        document.getElementById('globe-status').textContent = 'Events: ' + globalEvents.length;
+        /* After GDACS loads, try GDELT to supplement */
+        setTimeout(loadGDELT, 2000);
       } catch(e) { console.log('GDACS parse error', e); }
     }
   };
@@ -1628,17 +1903,16 @@ function loadUSGS() {
                       String(d.getUTCDate()).padStart(2,'0') + ' ' +
                       String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0');
             return {
-              name: 'M' + mag.toFixed(1) + ' ' + (f.properties.place || ''),
-              lat: f.geometry.coordinates[1],
-              lon: f.geometry.coordinates[0],
+              name:'M' + mag.toFixed(1) + ' ' + (f.properties.place||''),
+              lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0],
               type:'earthquake',
               severity: mag >= 7 ? 'Red' : mag >= 6 ? 'Orange' : 'Green',
               source:'USGS', utcTime:ts
             };
           });
-        globalEvents = globalEvents.concat(usgsEvts);
-        globeDataMsg = 'Events: ' + globalEvents.length;
-        document.getElementById('globe-status').textContent = globeDataMsg;
+        var otherEvts = globalEvents.filter(function(e){ return e.source !== 'USGS'; });
+        globalEvents = otherEvts.concat(usgsEvts);
+        document.getElementById('globe-status').textContent = 'Events: ' + globalEvents.length;
       } catch(e) {}
     }
   };
@@ -1647,7 +1921,174 @@ function loadUSGS() {
 
 loadGDACS();
 loadUSGS();
+loadACLED();
 setInterval(function(){ loadGDACS(); loadUSGS(); }, 360000);
+setInterval(loadACLED, 3600000); // ACLED once per hour
+
+/* ─────────────────────────────────────────────────────────────
+   PHASE 1B DATASETS
+───────────────────────────────────────────────────────────── */
+
+/* Oil & Gas Infrastructure — major facilities */
+var OIL_GAS = [
+  /* Pipelines — key strategic routes */
+  {name:'Nord Stream (Baltic)',        lat:55.0,  lon:15.0,  type:'pipeline', note:'Russian gas pipeline to Germany — heavily sanctioned'},
+  {name:'Druzhba Pipeline',            lat:50.0,  lon:28.0,  type:'pipeline', note:'Main Russian oil export route to Europe'},
+  {name:'Baku-Tbilisi-Ceyhan',        lat:40.0,  lon:46.0,  type:'pipeline', note:'Caspian oil to Mediterranean — bypasses Russia'},
+  {name:'Trans-Arabian Pipeline',      lat:27.0,  lon:42.0,  type:'pipeline', note:'Saudi Arabia to Lebanon — largely defunct'},
+  {name:'East Siberia-Pacific (ESPO)', lat:52.0,  lon:115.0, type:'pipeline', note:'Russian oil to China and Pacific'},
+  {name:'Keystone Pipeline (US)',      lat:42.0,  lon:-97.0, type:'pipeline', note:'Canada-US oil pipeline'},
+  /* LNG Terminals */
+  {name:'Ras Laffan LNG (Qatar)',      lat:25.9,  lon:51.6,  type:'lng',      note:'World\'s largest LNG export facility'},
+  {name:'Sabine Pass LNG (USA)',       lat:29.7,  lon:-93.9, type:'lng',      note:'Major US LNG export terminal'},
+  {name:'Yamal LNG (Russia)',          lat:72.8,  lon:72.6,  type:'lng',      note:'Arctic LNG — Russian export to Asia/Europe'},
+  {name:'Darwin LNG (Australia)',      lat:-12.4, lon:130.8, type:'lng',      note:'Australia LNG export to Asia'},
+  {name:'Prelude FLNG (Australia)',    lat:-13.9, lon:127.0, type:'lng',      note:'World\'s largest floating LNG facility'},
+  {name:'Bonny LNG (Nigeria)',         lat:4.4,   lon:7.2,   type:'lng',      note:'Major West African LNG export'},
+  /* Major Refineries */
+  {name:'Ruwais Refinery (UAE)',       lat:24.1,  lon:52.7,  type:'refinery', note:'One of world\'s largest — 817k bpd capacity'},
+  {name:'Ulsan Refinery (S.Korea)',    lat:35.5,  lon:129.3, type:'refinery', note:'Largest single-site refinery in world'},
+  {name:'Jamnagar Refinery (India)',   lat:22.5,  lon:70.1,  type:'refinery', note:'Reliance — world\'s largest refinery complex'},
+  {name:'Port Arthur Refinery (USA)',  lat:29.9,  lon:-93.9, type:'refinery', note:'Largest US refinery — 600k bpd'},
+  {name:'Abadan Refinery (Iran)',      lat:30.3,  lon:48.3,  type:'refinery', note:'Strategic Iranian refinery — sanctions target'},
+  /* Offshore Platforms */
+  {name:'Kashagan Field (Kazakhstan)', lat:46.0,  lon:53.0,  type:'offshore', note:'Largest oil field outside Middle East'},
+  {name:'Buzios Field (Brazil)',       lat:-23.0, lon:-41.0, type:'offshore', note:'Major pre-salt deepwater oil field'},
+  {name:'Johan Sverdrup (Norway)',     lat:58.8,  lon:2.5,   type:'offshore', note:'Largest Norwegian North Sea field'}
+];
+
+var OILGAS_COLORS = { pipeline:'#ff8800', lng:'#00ccff', refinery:'#ff4400', offshore:'#ffcc00' };
+
+/* Submarine Cable Routes — major clusters */
+var CABLES = [
+  {name:'FLAG/FALCON (Europe-Asia)',   lat1:51.5, lon1:-0.1,  lat2:22.3,  lon2:114.2, risk:'medium', note:'Major Europe-Asia route via Red Sea — vulnerable near Yemen'},
+  {name:'SEA-ME-WE 5',                lat1:48.9, lon1:2.3,   lat2:1.3,   lon2:103.8, risk:'high',   note:'Connects Europe to Southeast Asia through Red Sea'},
+  {name:'Trans-Atlantic (TAT)',        lat1:51.5, lon1:-0.1,  lat2:40.7,  lon2:-74.0, risk:'low',    note:'Primary Europe-US internet backbone'},
+  {name:'Trans-Pacific (TPE)',         lat1:35.7, lon1:139.7, lat2:37.8,  lon2:-122.4,risk:'low',    note:'Japan-USA primary cable'},
+  {name:'APCN-2 (Asia-Pacific)',       lat1:35.7, lon1:139.7, lat2:22.3,  lon2:114.2, risk:'medium', note:'Intra-Asia connectivity'},
+  {name:'EASSy (Africa)',              lat1:51.5, lon1:-0.1,  lat2:-26.2, lon2:28.0,  risk:'medium', note:'East Africa submarine cable system'},
+  {name:'MAREA (US-Europe)',           lat1:40.7, lon1:-74.0, lat2:43.4,  lon2:-8.4,  risk:'low',    note:'Microsoft/Facebook cable — 160Tbps capacity'},
+  {name:'NordLink (Norway-Germany)',   lat1:58.0, lon1:7.0,   lat2:54.0,  lon2:8.0,   risk:'high',   note:'Power cable AND data — Baltic critical infrastructure'},
+  {name:'Taiwan Strait cables',        lat1:25.0, lon1:121.5, lat2:22.3,  lon2:114.2, risk:'high',   note:'Critical Taiwan connectivity — conflict flashpoint'}
+];
+
+var CABLE_RISK_COLORS = { low:'#00aaff', medium:'#ffaa00', high:'#ff3333' };
+
+/* Nuclear Facilities — IAEA public data */
+var NUCLEAR = [
+  /* Power Plants */
+  {name:'Zaporizhzhia NPP (Ukraine)',  lat:47.5,  lon:34.6,  type:'power',    note:'Europe\'s largest NPP — active conflict zone'},
+  {name:'Bushehr NPP (Iran)',          lat:28.8,  lon:50.9,  type:'power',    note:'Iran\'s only nuclear power plant — sanctions focus'},
+  {name:'Yongbyon (N.Korea)',          lat:39.8,  lon:125.8, type:'weapons',  note:'Primary North Korean nuclear weapons complex'},
+  {name:'Natanz (Iran)',               lat:33.7,  lon:51.9,  type:'weapons',  note:'Main Iranian uranium enrichment facility'},
+  {name:'Fordow (Iran)',               lat:34.9,  lon:50.9,  type:'weapons',  note:'Underground Iranian enrichment — near Qom'},
+  {name:'Dimona (Israel)',             lat:30.9,  lon:35.2,  type:'weapons',  note:'Israeli nuclear weapons facility'},
+  {name:'Kurchatov (Russia)',          lat:55.7,  lon:37.6,  type:'research', note:'Russia\'s primary nuclear research center'},
+  {name:'Oak Ridge (USA)',             lat:36.0,  lon:-84.2, type:'research', note:'US nuclear research and enrichment'},
+  {name:'Sellafield (UK)',             lat:54.4,  lon:-3.5,  type:'power',    note:'UK nuclear reprocessing — largest in Europe'},
+  {name:'Chernobyl (Ukraine)',         lat:51.4,  lon:30.1,  type:'disaster', note:'1986 disaster site — exclusion zone'},
+  {name:'Fukushima (Japan)',           lat:37.4,  lon:141.0, type:'disaster', note:'2011 tsunami disaster — decommissioning ongoing'},
+  {name:'Khushab (Pakistan)',          lat:32.1,  lon:72.2,  type:'weapons',  note:'Pakistani plutonium production reactor'},
+  {name:'Baotou (China)',              lat:40.6,  lon:109.8, type:'weapons',  note:'Chinese nuclear weapons production complex'},
+  {name:'Arak (Iran)',                 lat:34.2,  lon:49.4,  type:'weapons',  note:'Heavy water reactor — proliferation risk'}
+];
+
+var NUCLEAR_COLORS = { power:'#ffff00', weapons:'#ff0000', research:'#00ff88', disaster:'#ff8800' };
+
+/* Sanctions Overlay — country shading by sanction intensity */
+/* Levels: 3=comprehensive, 2=significant, 1=targeted */
+var SANCTIONS_MAP = {
+  408:3,  /* North Korea — comprehensive */
+  364:3,  /* Iran — comprehensive */
+  643:3,  /* Russia — comprehensive post-2022 */
+  760:2,  /* Syria */
+  862:2,  /* Venezuela */
+  716:2,  /* Zimbabwe */
+  729:2,  /* Sudan */
+  887:2,  /* Yemen (Houthi entities) */
+  104:1,  /* Myanmar */
+  422:1,  /* Lebanon (Hezbollah) */
+  566:1,  /* Nigeria (targeted individuals) */
+  108:1,  /* Burundi */
+  140:1,  /* CAR */
+  706:1,  /* Somalia */
+  180:1   /* DRC */
+};
+
+var SANCTIONS_COLORS = {
+  3: 'rgba(255,0,0,0.35)',
+  2: 'rgba(255,100,0,0.25)',
+  1: 'rgba(255,200,0,0.15)'
+};
+
+/* Commodity Dependency — which countries are major exporters */
+var COMMODITY_DATA = {
+  oil: {
+    exporters: {
+      682:3,  /* Saudi Arabia */
+      364:3,  /* Iran */
+      643:3,  /* Russia */
+      784:3,  /* UAE */
+      368:2,  /* Iraq */
+      414:2,  /* Kuwait */
+      484:2,  /* Mexico */
+      566:2,  /* Nigeria */
+      76:2,   /* Brazil */
+      12:2,   /* Algeria */
+      840:1,  /* USA (also importer) */
+      124:1   /* Canada */
+    },
+    color: '#ff8800', label: 'OIL EXPORTERS'
+  },
+  gas: {
+    exporters: {
+      643:3,  /* Russia */
+      634:3,  /* Qatar */
+      364:2,  /* Iran */
+      36:2,   /* Australia */
+      840:2,  /* USA */
+      12:2,   /* Algeria */
+      566:1,  /* Nigeria */
+      528:1   /* Netherlands */
+    },
+    color: '#00ccff', label: 'GAS EXPORTERS'
+  },
+  wheat: {
+    exporters: {
+      643:3,  /* Russia */
+      804:3,  /* Ukraine */
+      840:2,  /* USA */
+      124:2,  /* Canada */
+      36:2,   /* Australia */
+      250:1,  /* France */
+      356:1   /* India */
+    },
+    color: '#ffdd00', label: 'WHEAT EXPORTERS'
+  },
+  copper: {
+    exporters: {
+      152:3,  /* Chile */
+      604:3,  /* Peru */
+      180:2,  /* DRC */
+      840:2,  /* USA */
+      36:2,   /* Australia */
+      156:2,  /* China */
+      894:1   /* Zambia */
+    },
+    color: '#cc6600', label: 'COPPER EXPORTERS'
+  },
+  lithium: {
+    exporters: {
+      32:3,   /* Argentina */
+      68:3,   /* Bolivia */
+      152:3,  /* Chile */
+      36:2,   /* Australia */
+      156:2,  /* China */
+      840:1   /* USA */
+    },
+    color: '#cc44ff', label: 'LITHIUM EXPORTERS'
+  }
+};
 
 /* ── Globe render ── */
 var globeLastFrame = 0;
@@ -1715,6 +2156,36 @@ function globeDraw() {
       ctx.fillStyle = TENSION_COLORS[level];
       ctx.fill();
     });
+  }
+
+  /* Sanctions overlay */
+  if (globeLayers.sanctions && globeCountries) {
+    globeCountries.features.forEach(function(f) {
+      var level = SANCTIONS_MAP[parseInt(f.id)];
+      if (!level) return;
+      ctx.beginPath(); path(f);
+      ctx.fillStyle = SANCTIONS_COLORS[level];
+      ctx.fill();
+    });
+    /* Label */
+    ctx.font = 'bold 7px Rajdhani,sans-serif';
+    ctx.fillStyle = '#ff6666';
+    ctx.textAlign = 'left';
+    ctx.fillText('SANCTIONS', 10, 20);
+  }
+
+  /* Commodity dependency overlay */
+  if (globeLayers.commodity && globeCountries) {
+    var cmdData = COMMODITY_DATA[activeCommodity];
+    if (cmdData) {
+      globeCountries.features.forEach(function(f) {
+        var level = cmdData.exporters[parseInt(f.id)];
+        if (!level) return;
+        ctx.beginPath(); path(f);
+        ctx.fillStyle = cmdData.color + (level === 3 ? '66' : level === 2 ? '44' : '22');
+        ctx.fill();
+      });
+    }
   }
 
   /* Globe outline */
@@ -1848,6 +2319,100 @@ function globeDraw() {
         ctx.fillStyle = color + 'cc';
         ctx.textAlign = 'center';
         ctx.fillText(b.name.split('(')[0].trim(), v[0], v[1]-10);
+      }
+    });
+  }
+
+  /* Oil & Gas Infrastructure */
+  if (globeLayers.oilgas) {
+    OIL_GAS.forEach(function(og) {
+      var vis = d3.geoDistance([og.lon,og.lat],[-globeRot[0],-globeRot[1]]) < Math.PI/2;
+      if (!vis) return;
+      var v = proj([og.lon, og.lat]);
+      if (!v) return;
+      var color = OILGAS_COLORS[og.type] || '#ff8800';
+      /* Diamond marker */
+      ctx.save();
+      ctx.translate(v[0], v[1]);
+      ctx.rotate(Math.PI/4);
+      ctx.fillStyle = color + 'cc';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.fillRect(-4,-4,8,8);
+      ctx.strokeRect(-4,-4,8,8);
+      ctx.restore();
+      if (globeZoom >= 1.5) {
+        ctx.font = '7px Rajdhani,sans-serif';
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.fillText(og.name.split('(')[0].trim(), v[0], v[1]-10);
+      }
+    });
+  }
+
+  /* Submarine Cables — drawn as lines */
+  if (globeLayers.cables) {
+    CABLES.forEach(function(cable) {
+      var v1 = proj([cable.lon1, cable.lat1]);
+      var v2 = proj([cable.lon2, cable.lat2]);
+      if (!v1 || !v2) return;
+      var vis1 = d3.geoDistance([cable.lon1,cable.lat1],[-globeRot[0],-globeRot[1]]) < Math.PI/2;
+      var vis2 = d3.geoDistance([cable.lon2,cable.lat2],[-globeRot[0],-globeRot[1]]) < Math.PI/2;
+      if (!vis1 && !vis2) return;
+      var color = CABLE_RISK_COLORS[cable.risk] || '#00aaff';
+      /* Draw geodesic line */
+      ctx.beginPath();
+      var geoLine = { type:'LineString', coordinates:[[cable.lon1,cable.lat1],[cable.lon2,cable.lat2]] };
+      path(geoLine);
+      ctx.strokeStyle = color + '88';
+      ctx.lineWidth = cable.risk === 'high' ? 2 : 1;
+      ctx.setLineDash(cable.risk === 'high' ? [] : [4,4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      /* Midpoint label */
+      if (globeZoom >= 1.5) {
+        var midLat = (cable.lat1 + cable.lat2) / 2;
+        var midLon = (cable.lon1 + cable.lon2) / 2;
+        var vm = proj([midLon, midLat]);
+        if (vm && d3.geoDistance([midLon,midLat],[-globeRot[0],-globeRot[1]]) < Math.PI/2) {
+          ctx.font = '6px Rajdhani,sans-serif';
+          ctx.fillStyle = color;
+          ctx.textAlign = 'center';
+          ctx.fillText(cable.name.split('(')[0].trim(), vm[0], vm[1]);
+        }
+      }
+    });
+  }
+
+  /* Nuclear Facilities */
+  if (globeLayers.nuclear) {
+    NUCLEAR.forEach(function(nuc) {
+      var vis = d3.geoDistance([nuc.lon,nuc.lat],[-globeRot[0],-globeRot[1]]) < Math.PI/2;
+      if (!vis) return;
+      var v = proj([nuc.lon, nuc.lat]);
+      if (!v) return;
+      var color = NUCLEAR_COLORS[nuc.type] || '#ffff00';
+      var pulse = 1 + 0.2*Math.sin(pulseT*0.3);
+      /* Radiation symbol approximation — circle with glow */
+      ctx.beginPath();
+      ctx.arc(v[0], v[1], 5*pulse, 0, Math.PI*2);
+      ctx.fillStyle = color + '99';
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      /* Crosshair */
+      ctx.beginPath();
+      ctx.moveTo(v[0]-7, v[1]); ctx.lineTo(v[0]+7, v[1]);
+      ctx.moveTo(v[0], v[1]-7); ctx.lineTo(v[0], v[1]+7);
+      ctx.strokeStyle = color + '66';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      if (globeZoom >= 1.4) {
+        ctx.font = 'bold 7px Rajdhani,sans-serif';
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.fillText(nuc.name.split('(')[0].trim(), v[0], v[1]-12);
       }
     });
   }
@@ -1989,16 +2554,28 @@ function toggleLayer(name) {
   globeLayers[name] = !globeLayers[name];
   var btn = document.getElementById('tog-' + name);
   var labels = {
-    equities:'&#128200; EQUITIES',
-    forex:'&#128177; FOREX',
-    events:'&#9888; DISASTERS',
-    conflicts:'&#9876; CONFLICTS',
-    chokepoints:'&#9875; CHOKEPOINTS',
-    bases:'&#129686; MIL BASES',
-    tension:'&#127777; TENSION'
+    equities:'&#128200; EQUITIES',   forex:'&#128177; FOREX',
+    events:'&#9888; DISASTERS',      conflicts:'&#9876; CONFLICTS',
+    chokepoints:'&#9875; CHOKEPOINTS', bases:'&#129686; MIL BASES',
+    tension:'&#127777; TENSION',     oilgas:'&#128741; OIL/GAS',
+    cables:'&#128268; CABLES',       nuclear:'&#9762; NUCLEAR',
+    sanctions:'&#128683; SANCTIONS', commodity:'&#127757; COMMODITY'
   };
-  btn.classList.toggle('on', globeLayers[name]);
-  btn.innerHTML = labels[name] + (globeLayers[name] ? ' ON' : ' OFF');
+  if (btn) {
+    btn.classList.toggle('on', globeLayers[name]);
+    btn.innerHTML = labels[name] + (globeLayers[name] ? ' ON' : ' OFF');
+  }
+  /* Show commodity selector when commodity is toggled on */
+  var sel = document.getElementById('commodity-selector');
+  if (sel) sel.style.display = globeLayers.commodity ? 'block' : 'none';
+}
+
+function setCommodity(cmd) {
+  activeCommodity = cmd;
+  ['oil','gas','wheat','copper','lithium'].forEach(function(c) {
+    var btn = document.getElementById('cmd-' + c);
+    if (btn) btn.classList.toggle('on', c === cmd);
+  });
 }
 
 /* Globe click — show popup */
@@ -2017,6 +2594,8 @@ function handleGlobeClick(e) {
   if (globeLayers.events)      globalEvents.forEach(function(e){ allEvts.push(e); });
   if (globeLayers.chokepoints) CHOKEPOINTS.forEach(function(e){ allEvts.push({name:e.name, type:'chokepoint', lat:e.lat, lon:e.lon, severity:e.status, source:'Maritime Intel', note:e.note}); });
   if (globeLayers.bases)       MILITARY_BASES.forEach(function(b){ allEvts.push({name:b.name, type:'military', lat:b.lat, lon:b.lon, severity:'Green', source:'Open Source Defense', note:b.nation.toUpperCase()+' facility'}); });
+  if (globeLayers.oilgas)      OIL_GAS.forEach(function(o){ allEvts.push({name:o.name, type:'oilgas', lat:o.lat, lon:o.lon, severity:'Green', source:'Public GIS', note:o.note}); });
+  if (globeLayers.nuclear)     NUCLEAR.forEach(function(n){ allEvts.push({name:n.name, type:'nuclear', lat:n.lat, lon:n.lon, severity:n.type==='weapons'?'Red':n.type==='disaster'?'Orange':'Green', source:'IAEA', note:n.note}); });
 
   var hit = null, minDist = 20;
   allEvts.forEach(function(ev) {
